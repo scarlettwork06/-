@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>人民陳情案「簽與函稿」AI 智慧生成器 v3.0</title>
+    <title>人民陳情案「簽與函稿」AI 智慧生成器 v4.0</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; line-height: 1.6; max-width: 850px; margin: 30px auto; padding: 20px; background-color: #f5f7fa; }
         .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
@@ -24,7 +24,6 @@
         .btn-container { text-align: center; margin-top: 25px; }
         .submit-btn { padding: 14px 40px; background-color: #2980b9; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
         .submit-btn:hover { background-color: #3498db; }
-        .submit-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
         
         /* 輸出結果樣式 */
         .output-section { margin-top: 30px; display: none; }
@@ -40,39 +39,35 @@
     <h2>人民陳情案「簽與函稿」AI 智慧生成器</h2>
     
     <div class="form-row">
-        <!-- 1. 陳情人 -->
         <div class="form-group">
             <label for="petitioner">1. 陳情人 <span class="optional">（選填，預設為「陳情人」）</span>：</label>
             <input type="text" id="petitioner" placeholder="例：張先生">
         </div>
 
-        <!-- 新增：來文時間 -->
         <div class="form-group">
             <label for="receiveDate">2. 來文時間 <span class="optional">（選填，預設為今日）</span>：</label>
             <input type="date" id="receiveDate">
         </div>
     </div>
 
-    <!-- 3. 陳情內容 -->
     <div class="form-group">
         <label for="content">3. 陳情內容 <span class="required">（必填）</span>：</label>
         <textarea id="content" rows="4" placeholder="請輸入民眾陳情之核心具體訴求..."></textarea>
     </div>
 
-    <!-- 4. 回覆大要 -->
     <div class="form-group">
-        <label for="summary">4. 回覆大要/擬答重點 <span class="optional">（選填，留空或簡要填寫均會觸發 Gemini AI 優化）</span>：</label>
-        <textarea id="summary" rows="4" placeholder="可以留空由 AI 發揮；或簡要填寫關鍵字（例：不符規定拒絕），由 AI 自動擴充撰寫為正式公文語氣。"></textarea>
+        <label for="summary">4. 回覆大要/擬答重點 <span class="optional">（選填，留空或簡寫都會觸發 Gemini AI 優化）</span>：</label>
+        <textarea id="summary" rows="4" placeholder="可留空由 AI 發揮；或簡要填寫關鍵字（例：不符規定拒絕），由 AI 自動擴充撰寫為正式公文語氣。"></textarea>
     </div>
 
     <label>5. 請選擇公文辦理方式：</label>
     <div class="mode-container">
-        <div class="mode-btn active" id="btnBoth">簽稿併陳</div>
-        <div class="mode-btn" id="idDraftOnly">以稿代簽</div>
+        <div class="mode-btn active" id="btnBoth" onclick="changeMode('both')">簽稿併陳</div>
+        <div class="mode-btn" id="idDraftOnly" onclick="changeMode('draftOnly')">以稿代簽</div>
     </div>
 
     <div class="btn-container">
-        <button class="submit-btn" id="submitBtn">一鍵生成公文稿件</button>
+        <button class="submit-btn" id="submitBtn" onclick="startGeneration()">一鍵生成公文稿件</button>
     </div>
     
     <div class="loading" id="loadingText">⏳ Gemini AI 正在運用專業公文語氣研議並優化回覆內容，請稍候...</div>
@@ -88,42 +83,41 @@
 </div>
 
 <script>
-    // ⚠️ 請在此處填入您的 Gemini API Key 以啟用完整 AI 擬稿與優化功能！
+    // ⚠️ 請在此處填入您的 Gemini API Key 以啟用完整 AI 功能！
     const GEMINI_API_KEY = "請在此處填入您的Gemini_API_KEY"; 
     
-    let currentMode = 'both';
+    let currentMode = 'both'; // 預設模式
 
     // 自動將「來文時間」欄位預設為今天
-    window.addEventListener('DOMContentLoaded', () => {
+    window.onload = function() {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('receiveDate').value = today;
-    });
+    };
 
-    // 辦理方式按鈕切換
-    document.getElementById('btnBoth').addEventListener('click', function() {
-        currentMode = 'both';
-        this.classList.add('active');
-        document.getElementById('idDraftOnly').classList.remove('active');
-    });
+    // 切換模式的函式
+    function changeMode(mode) {
+        currentMode = mode;
+        if (mode === 'both') {
+            document.getElementById('btnBoth').classList.add('active');
+            document.getElementById('idDraftOnly').classList.remove('active');
+        } else {
+            document.getElementById('idDraftOnly').classList.add('active');
+            document.getElementById('btnBoth').classList.remove('active');
+        }
+    }
 
-    document.getElementById('idDraftOnly').addEventListener('click', function() {
-        currentMode = 'draftOnly';
-        this.classList.add('active');
-        document.getElementById('btnBoth').classList.remove('active');
-    });
-
-    // 一鍵生成主邏輯
-    document.getElementById('submitBtn').addEventListener('click', async function() {
+    // 按下生成的按鈕主程式
+    async function startGeneration() {
         let petitioner = document.getElementById('petitioner').value.trim() || "陳情人";
         let content = document.getElementById('content').value.trim();
         let summary = document.getElementById('summary').value.trim();
         let receiveDateRaw = document.getElementById('receiveDate').value;
         
-        // 處理日期格式（轉換為台灣公文常見的 115 年 6 月 28 日 格式）
+        // 轉換為民國日期格式
         let dateString = "____年__月__日";
         if (receiveDateRaw) {
             const dateParts = receiveDateRaw.split('-');
-            const year = parseInt(dateParts[0]) - 1911; // 轉為民國年
+            const year = parseInt(dateParts[0]) - 1911;
             const month = parseInt(dateParts[1]);
             const day = parseInt(dateParts[2]);
             dateString = `民國 ${year} 年 ${month} 月 ${day} 日`;
@@ -139,21 +133,20 @@
         let isAiUsed = false;
         let finalSummary = summary;
 
-        // 2. 判斷是否啟用 AI 進行生成或擴充潤飾
+        // 2. 檢查 API 金鑰並決定是否跑 AI
         if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("請在此處填入") || GEMINI_API_KEY === "") {
-            // 無 Key 狀態下的防當機保險
+            // 如果沒貼 Key，而且 summary 又是空的，直接給預設保留文字
             if (!finalSummary) {
                 finalSummary = "（回覆大要留空，請於此處手動補充回覆大要與法規依據）";
             }
         } else {
-            // 有 Key 狀態：無論留空或有寫，一律送交 Gemini 優化
+            // 有貼 Key，啟動 AI
             isAiUsed = true;
             document.getElementById('loadingText').style.display = 'block';
             document.getElementById('outputSection').style.display = 'none';
-            document.getElementById('submitBtn').disabled = true;
             
             try {
-                finalSummary = await fetchGeminiReply(content, summary);
+                finalSummary = await callGemini(content, summary);
             } catch (e) {
                 console.error(e);
                 finalSummary = summary || "（AI 連線失敗，請手動補充回覆大要）";
@@ -161,15 +154,14 @@
             }
             
             document.getElementById('loadingText').style.display = 'none';
-            document.getElementById('submitBtn').disabled = false;
         }
 
-        // 3. 顯示 AI 標籤
-        const badgeHtml = isAiUsed ? '<span class="ai-badge">Gemini AI 智慧擬擬答</span>' : '';
+        // 3. 設定 AI 標籤
+        const badgeHtml = isAiUsed ? '<span class="ai-badge">Gemini AI 智慧擬答</span>' : '';
         document.getElementById('aiSignBadge').innerHTML = badgeHtml;
         document.getElementById('aiLetterBadge').innerHTML = badgeHtml;
 
-        // 4. 根據模式渲染公文結構
+        // 4. 依照模式輸出結果
         const signBlock = document.getElementById('signBlock');
         const signOutput = document.getElementById('signOutput');
         const letterOutput = document.getElementById('letterOutput');
@@ -183,33 +175,28 @@
             letterOutput.textContent = `受文者：${petitioner}\n\n主旨：有關 台端於 ${dateString} 陳情事項，復如說明，請 查照。\n\n說明：\n一、復 台端陳情內容。\n二、關於旨揭陳情訴求，本會意見如下：\n    ${finalSummary}\n\n正本：${petitioner}\n副本：\n\n（本案依規定採「以稿代簽」辦理，經 貴長官核可後逕行發文）`;
         }
 
-        // 顯示結果並滾動
+        // 5. 打開輸出區塊並向下捲動
         document.getElementById('outputSection').style.display = 'block';
         document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
-    });
+    }
 
-    // 呼叫 Gemini 的優化函式
-    async function fetchGeminiReply(content, userSummary) {
-        // 建立給 AI 的高級公文 Prompt
-        let systemPrompt = `你現在是台灣政府機關的公文專家。現有民眾陳情內容如下：\n「${content}」\n\n`;
-        
+    // 負責處理 Gemini API 連線
+    async function callGemini(content, userSummary) {
+        let promptText = `你現在是台灣政府機關的公文專家。現有民眾陳情內容如下：\n「${content}」\n\n`;
         if (userSummary) {
-            systemPrompt += `承辦人員對此案已提供初步擬答方向或關鍵字：\n「${userSummary}」\n\n請依據承辦人的擬答方向，將其「優化、擴充並潤飾」為一段長度約150-300字、語氣正式、客觀、委婉且依法行政的公文說明文字。`;
+            promptText += `承辦人員對此案已提供初步擬答方向或關鍵字：\n「${userSummary}」\n\n請依據承辦人的擬答方向，將其「優化、擴充並潤飾」為一段長度約150-300字、語氣正式、客觀、委婉且依法行政的公文說明文字。`;
         } else {
-            systemPrompt += `承辦人員目前尚未提供擬答方向。請你站在政府機關的客觀立場，直接「從無到有」為此陳情內容撰寫一段長度約150-300字、語氣正式、公務專業的回覆要點。`;
+            promptText += `承辦人員目前尚未提供擬答方向。請你站在政府機關的客觀立場，直接「從無到有」為此陳情內容撰寫一段長度約150-300字、語氣正式、公務專業的回覆要點。`;
         }
-        
-        systemPrompt += `\n\n【嚴格限制要求】：\n1. 必須以公務機關正式說明的語氣撰寫，多使用「經查…」、「按規定…」、「尚難照辦」、「尚請見諒」等公文慣用語。\n2. 直接輸出回覆內容，絕對不要包含公文的「主旨：」、「說明：」等外殼結構，只要提供要點文字即可。\n3. 不要寫任何前言、引言或「好的，以下是潤飾後的內容」等贅詞。`;
+        promptText += `\n\n【嚴格限制要求】：\n1. 必須以公務機關正式說明的語氣撰寫，多使用「經查…」、「按規定…」、「尚難照辦」、「尚請見諒」等公文慣用語。\n2. 直接輸出回覆內容，絕對不要包含公文的「主旨：」、「說明：」等外殼結構，只要提供要點文字即可。\n3. 不要寫任何前言、引言或贅詞。`;
 
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                contents: [{ parts: [{ text: systemPrompt }] }] 
-            })
+            body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
         });
         
-        if (!response.ok) throw new Error("API 錯誤");
+        if (!response.ok) throw new Error("API Error");
         const data = await response.json();
         return data.candidates[0].content.parts[0].text.trim();
     }
