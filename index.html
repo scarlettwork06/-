@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>人民陳情案「簽與函稿」AI 智慧生成器 v5.0</title>
+    <title>人民陳情案「簽與函稿」AI 智慧生成器 v6.0</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; line-height: 1.6; max-width: 850px; margin: 30px auto; padding: 20px; background-color: #f5f7fa; }
         .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
@@ -57,8 +57,10 @@
     </div>
 
     <div class="form-group">
-        <label for="summary">4. 回覆大要/擬答重點 <span class="optional">（選填，留空或簡寫都會同時呼叫 AI 智慧生成專業擬答）</span>：</label>
-        <textarea id="summary" rows="4" placeholder="【選填】可完全留空，由 Gemini 根據陳情內容擬答；亦可輸入簡要關鍵字（如：不符規定、將派員查處），由 AI 自動擴充潤飾為正式公文語氣。"></textarea>
+        <label for="summary">4. 回覆大要/擬答重點 <span class="optional">（無論是否填寫，一律啟動 AI 優化/自動擬稿）</span>：</label>
+        <textarea id="summary" rows="4" placeholder="【選填】
+1. 若完全留空：AI 會直接幫您「從無到有」生出專業公文擬答。
+2. 若簡要填寫（如：不符規定拒絕）：AI 會自動自動讀取，將其「潤飾、擴充」成標準公文文字。"></textarea>
     </div>
 
     <label>5. 請選擇公文辦理方式：</label>
@@ -71,7 +73,7 @@
         <button class="submit-btn" id="submitBtn" onclick="startGeneration()">一鍵生成公文稿件</button>
     </div>
     
-    <div class="loading" id="loadingText">⏳ Gemini AI 正在深入分析並運用專業公文語氣生成回覆內容，請稍候...</div>
+    <div class="loading" id="loadingText">⏳ Gemini AI 正在依據裁量重點進行深度公文潤飾與擬稿，請稍候...</div>
 
     <div id="outputSection" class="output-section">
         <div id="signBlock">
@@ -84,7 +86,7 @@
 </div>
 
 <script>
-    // ⚠️ 請在下方雙引號內填入您的 Gemini API Key 以正式啟用 AI 擬答與自動擴充功能！
+    // ⚠️ 請在下方雙引號內填入您的 Gemini API Key 以運作完整 AI 功能！
     const GEMINI_API_KEY = "請在此處填入您的Gemini_API_KEY"; 
     
     let currentMode = 'both'; // 預設模式為簽稿併陳
@@ -99,12 +101,9 @@
     function changeMode(mode) {
         currentMode = mode;
         if (mode === 'both') {
-            document.getElementById('btnBoth').classList.add('active');
-            document.getElementById('idDraftOnly').classList.remove('active');
+            document.getElementById('btnBoth').className = 'mode-btn active';
+            document.getElementById('idDraftOnly').className = 'mode-btn';
         } else {
-            document.getElementById('idDraftOnly').classList.add('add', 'active');
-            document.getElementById('btnBoth').classList.remove('active');
-            // 修正部分瀏覽器 classList.add 多參數相容性
             document.getElementById('idDraftOnly').className = 'mode-btn active';
             document.getElementById('btnBoth').className = 'mode-btn';
         }
@@ -124,7 +123,7 @@
             return; 
         }
 
-        // 轉換為民國日期格式（如：民國 115 年 6 月 28 日）
+        // 轉換為民國日期格式
         let dateString = "____年__月__日";
         if (receiveDateRaw) {
             const dateParts = receiveDateRaw.split('-');
@@ -154,7 +153,7 @@
                 finalSummary = await callGeminiAI(content, summary);
             } catch (e) {
                 console.error(e);
-                finalSummary = summary || "（AI 連線異常，請檢查網路或 API Key 後再行嘗試）";
+                finalSummary = summary || "（AI 連線異常，請手動補充回覆大要）";
                 isAiUsed = false;
             }
             
@@ -190,13 +189,13 @@
     async function callGeminiAI(content, userSummary) {
         let promptText = `你現在是台灣政府機關的公文專家。現有民眾陳情內容如下：\n「${content}」\n\n`;
         
-        if (userSummary) {
-            promptText += `承辦人員對此案已提供初步擬答方向或關鍵字：\n「${userSummary}」\n\n請你將承辦人提供的簡短方向，進行「優化、擴充並深度潤飾」成一段長度約 150-300 字、結構完整、語氣極其正式且依法行政的公文說明文字。`;
+        if (userSummary && userSummary.trim() !== "") {
+            promptText += `【承辦人指示的核心裁量重點】：\n「${userSummary}」\n\n【任務】：請自動讀取承辦人輸入的這段簡短重點，將其「優化、潤飾與擴充」為一段結構完整、文字優雅、依法行政且客觀委婉的公務標準公文文字。必須完整體現承辦人所表達的意思，但將粗白話代換為公文常用語。`;
         } else {
-            promptText += `承辦人員目前尚未提供任何擬答方向。請你站在政府機關的客觀立場，直接「從無到有」為此陳情內容撰寫一段長度約 150-300 字、語氣專業、推力適度、符合法規回覆常態的答覆要點大要。`;
+            promptText += `【任務】：承辦人員目前「完全留空」未填寫回覆大要。請你直接「從無到有」為此陳情內容擬定一段客觀、專業、推力適度、符合政府機關依法行政原則的標準公文回覆要點大要。`;
         }
         
-        promptText += `\n\n【嚴格格式與語氣要求】：\n1. 必須以機關正式公文說明的語氣撰寫，多使用公文慣用語（例如：「經查…」、「按規定…」、「尚難照辦」、「尚請見諒」、「逕向主管機關洽詢」）。\n2. 請直接輸出回覆的實質核心內容。絕對不要包含公文的外殼結構（例如：不要寫「主旨：」、「說明：」、「一、」、「二、」等標號）。\n3. 絕對不要有任何聊天性質的前言、引言、結語或引號（例如：不要寫「好的，以下是潤飾後的公文內容：」）。`;
+        promptText += `\n\n【嚴格格式與語氣要求】：\n1. 語氣必須具備高度公務專業度，立場應客觀中立、委婉但堅定。請大量靈活運用公文特定用語（如：「經查…」、「按規定…」、「尚難照辦」、「尚請見諒」、「逕向主管機關洽詢」、「合予敘明」）。\n2. 請直接輸出回覆的實質核心要點內容。絕對不要包含公文的外殼結構（例如：不要寫「主旨：」、「說明：」、「一、」、「二、」等標號）。\n3. 絕對不要有任何聊天性質的前言、引言、結語或外加引號（例如：不要寫「好的，以下是為您擴充潤飾後的公文內容：」）。\n4. 字數請控制在 150 字至 300 字之間。`;
 
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
