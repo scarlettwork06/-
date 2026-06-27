@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>人民陳情案「簽與函稿」智慧生成器 v8.1 免金鑰版</title>
+    <title>人民陳情案「簽與函稿」智慧生成小工具 v9.0 穩定版</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; line-height: 1.6; max-width: 850px; margin: 30px auto; padding: 20px; background-color: #f5f7fa; }
         .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
@@ -21,21 +21,22 @@
         .mode-btn.active { background-color: #2c3e50; color: #fff; }
         
         .btn-container { text-align: center; margin-top: 25px; }
-        .submit-btn { padding: 14px 40px; background-color: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        .submit-btn:hover { background-color: #4caf50; }
-        .submit-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        .submit-btn { padding: 14px 40px; background-color: #2980b9; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .submit-btn:hover { background-color: #3498db; }
+        
+        .copy-prompt-btn { display: block; width: 100%; padding: 12px; background-color: #e67e22; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-bottom: 15px; text-align: center; }
+        .copy-prompt-btn:hover { background-color: #d35400; }
         
         .output-section { margin-top: 30px; display: none; }
-        .output-box { padding: 20px; border: 1px dashed #2e7d32; background: #fdfefe; white-space: pre-wrap; margin-bottom: 25px; font-size: 15px; border-radius: 4px; line-height: 1.8; font-family: "Microsoft JhengHei", Courier, monospace; }
-        .output-title { font-weight: bold; color: #2c3e50; margin-bottom: 8px; font-size: 1.1em; display: flex; align-items: center; }
-        .ai-badge { background-color: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: normal; margin-left: 10px; border: 1px solid #2e7d32; }
-        .loading { display: none; text-align: center; color: #2e7d32; font-weight: bold; margin: 15px 0; }
+        .output-box { padding: 20px; border: 1px dashed #2980b9; background: #fdfefe; white-space: pre-wrap; margin-bottom: 25px; font-size: 15px; border-radius: 4px; line-height: 1.8; font-family: "Microsoft JhengHei", Courier, monospace; }
+        .output-title { font-weight: bold; color: #2c3e50; margin-bottom: 8px; font-size: 1.1em; }
+        .prompt-box { background-color: #fff3e0; border: 1px solid #ffe0b2; padding: 15px; border-radius: 4px; font-size: 14px; color: #e65100; margin-bottom: 25px; white-space: pre-wrap; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>人民陳情案「簽與函稿」智慧生成器 (免金鑰雲端版)</h2>
+    <h2>人民陳情案「簽與函稿」智慧生成小工具 (免Key穩定版)</h2>
     
     <div class="form-row">
         <div class="form-group">
@@ -49,8 +50,8 @@
     </div>
 
     <div class="form-group">
-        <label for="subject">3. 陳情主旨 <span class="optional">（選填，如有輸入將主動融入公文主旨與 AI 內文中）</span>：</label>
-        <input type="text" id="subject" placeholder="例：反映某路段路燈故障損壞、反映程序不當">
+        <label for="subject">3. 陳情主旨 <span class="optional">（選填，將自動融入公文與 AI 指令中）</span>：</label>
+        <input type="text" id="subject" placeholder="例：反映程序不當、反映設備損壞">
     </div>
 
     <div class="form-group">
@@ -59,8 +60,8 @@
     </div>
 
     <div class="form-group">
-        <label for="summary">5. 回覆大要/擬答重點 <span class="optional">（完全免填金鑰，一律啟動免費雲端 AI 優化）</span>：</label>
-        <textarea id="summary" rows="4" placeholder="【選填】若留空則由 AI 從無到有擬稿；若簡答則由 AI 深度擴充。"></textarea>
+        <label for="summary">5. 回覆大要/擬答重點 <span class="optional">（選填）</span>：</label>
+        <textarea id="summary" rows="3" placeholder="請輸入簡短擬答重點（如：不符規定拒絕），若留空則交由 AI 從無到有發揮。"></textarea>
     </div>
 
     <label>6. 請選擇公文辦理方式：</label>
@@ -70,23 +71,28 @@
     </div>
 
     <div class="btn-container">
-        <button class="submit-btn" id="submitBtn" onclick="startGeneration()">一鍵生成公文稿件</button>
+        <button class="submit-btn" onclick="generateDraft()">一鍵生成公文結構與 AI 提示詞</button>
     </div>
     
-    <div class="loading" id="loadingText">⏳ 免費 AI 正在線上進行深度公文潤飾與擬稿，請稍候...</div>
-
     <div id="outputSection" class="output-section">
+        <div class="output-title" style="color: #d35400;">第一步：請點擊下方按鈕複製，並貼到 ChatGPT / Gemini 生成優化內文</div>
+        <button class="copy-prompt-btn" onclick="copyPromptText()">📋 點我一鍵複製「AI 優化提示詞」</button>
+        <div id="promptPreview" class="prompt-box"></div>
+
+        <div class="output-title" style="color: #2c3e50; border-top: 2px dashed #bdc3c7; padding-top: 20px;">第二步：將 AI 生成的內文，填入下方【說明三】或【說明二】即可</div>
+        
         <div id="signBlock">
-            <div class="output-title">【簽呈範本】<span id="aiSignBadge"></span></div>
+            <div class="output-title">【簽呈範本】</div>
             <div id="signOutput" class="output-box"></div>
         </div>
-        <div class="output-title">【函稿範本】<span id="aiLetterBadge"></span></div>
+        <div class="output-title">【函稿範本】</div>
         <div id="letterOutput" class="output-box"></div>
     </div>
 </div>
 
 <script>
     let currentMode = 'both'; 
+    let generatedPrompt = "";
 
     window.onload = function() {
         const today = new Date().toISOString().split('T')[0];
@@ -104,9 +110,9 @@
         }
     }
 
-    async function startGeneration() {
+    function generateDraft() {
         let petitioner = document.getElementById('petitioner').value.trim() || "陳情人";
-        let subject = document.getElementById('subject').value.trim(); // 🛠️ 修正：確實抓取主旨欄位值
+        let subject = document.getElementById('subject').value.trim();
         let content = document.getElementById('content').value.trim();
         let summary = document.getElementById('summary').value.trim();
         let receiveDateRaw = document.getElementById('receiveDate').value;
@@ -125,29 +131,25 @@
             dateString = `民國 ${year} 年 ${month} 月 ${day} 日`;
         }
 
-        let isAiUsed = true;
-        let finalSummary = summary;
-
-        document.getElementById('loadingText').style.display = 'block';
-        document.getElementById('outputSection').style.display = 'none';
-        document.getElementById('submitBtn').disabled = true;
+        // 1. 建立給 AI 看的終極提示詞
+        generatedPrompt = `你現在是台灣政府機關的公文專家。現有民眾陳情案資訊如下：\n`;
+        if (subject) generatedPrompt += `【重要背景：陳情主旨】：${subject}\n`;
+        generatedPrompt += `【陳情內容】：「${content}」\n\n`;
         
-        try {
-            finalSummary = await callFreeAI(content, summary, subject);
-        } catch (e) {
-            console.error(e);
-            finalSummary = summary ? `【免費線路堵塞，以下為原重點】：\n${summary}` : "（免費 AI 線路繁忙，請稍後再試，或手動補充回覆大要）";
-            isAiUsed = false;
+        if (summary) {
+            generatedPrompt += `【承辦人指示的核心裁量重點】：「${summary}」\n\n【任務】：請自動讀取承辦人輸入的這段簡短重點，將其「優化、潤飾與擴充」為一段結構完整、文字優雅、依法行政且客觀委婉的公務標準公文回覆。`;
+        } else {
+            generatedPrompt += `【任務】：承辦人員目前「完全留空」未填寫回覆大要。請你直接「從無到有」為此陳情內容擬定一段客觀、專業、符合政府機關依法行政原則的標準擬答內文。`;
         }
         
-        document.getElementById('loadingText').style.display = 'none';
-        document.getElementById('submitBtn').disabled = false;
+        if (subject) {
+            generatedPrompt += `\n\n【特別要求】：由於承辦人有提供陳情主旨為「${subject}」，請你在生成的擬答內容「第一句話」，必須主動點題（例如：開頭寫「關於 貴長官/台端反映【${subject}】一事，經查...」或「有關 貴長官/台端陳情【${subject}】案，本會意見如下：...」）。`;
+        }
+        generatedPrompt += `\n\n【嚴格格式與語氣要求】：1. 語氣必須具備高度公務專業度，立場應客觀中立、委婉但堅定。請大量靈活運用公文特定用語（如：「經查…」、「按規定…」、「尚難照辦」、「尚請見諒」、「合予敘明」）。2. 請直接輸出回覆的實質核心要點內容。絕對不要包含公文的外殼結構（例如：不要寫主旨、說明、一、二等標號）。3. 絕對不要有任何聊天性質的前言、引言或結語。4. 字數控制在 150 字至 300 字之間。`;
 
-        const badgeHtml = isAiUsed ? '<span class="ai-badge">免費雲端 AI 智慧公文擬答</span>' : '';
-        document.getElementById('aiSignBadge').innerHTML = badgeHtml;
-        document.getElementById('aiLetterBadge').innerHTML = badgeHtml;
+        document.getElementById('promptPreview').textContent = generatedPrompt;
 
-        // 動態組合公文結構主旨
+        // 2. 渲染公文外殼結構
         let signSubjectText = `關於 ${petitioner} 於 ${dateString} 陳情案`;
         let letterSubjectText = `有關 台端於 ${dateString} 陳情事項`;
         let contentIntroText = "本案陳情核心內容略以：\n    ";
@@ -162,18 +164,13 @@
         const signOutput = document.getElementById('signOutput');
         const letterOutput = document.getElementById('letterOutput');
 
+        // 把預留位置用顯眼的符號標示出來
+        let placeholderText = "【👉 請在此處貼上 AI 幫您產出的專業優化內文】";
+
         if (currentMode === 'both') {
             signBlock.style.display = 'block';
-            signOutput.textContent = `主旨：${signSubjectText}，擬辦意見如說明，請 核示。\n\n說明：\n一、依據 ${petitioner} ${dateString} 陳情意見辦理。\n二、${contentIntroText}${content}\n三、經查與研議，本案擬擬答復要點如下：\n    ${finalSummary}\n四、檢陳回覆函稿乙份。\n\n擬辦：奉核後，稿隨文發。`;
-            letterOutput.textContent = `受文者：${petitioner}\n\n主旨：${letterSubjectText}，復如說明，請 查照。\n\n說明：\n一、復 台端陳情內容。\n二、關於旨揭陳情訴求，本會意見如下：\n    ${finalSummary}`;
+            signOutput.textContent = `主旨：${signSubjectText}，擬辦意見如說明，請 核示。\n\n說明：\n一、依據 ${petitioner} ${dateString} 陳情意見辦理。\n二、${contentIntroText}${content}\n三、經查與研議，本案擬擬答復要點如下：\n    ${placeholderText}\n四、檢陳回覆函稿乙份。\n\n擬辦：奉核後，稿隨文發。`;
+            letterOutput.textContent = `受文者：${petitioner}\n\n主旨：${letterSubjectText}，復如說明，請 查照。\n\n說明：\n一、復 台端陳情內容。\n二、關於旨揭陳情訴求，本會意見如下：\n    ${placeholderText}`;
         } else {
             signBlock.style.display = 'none';
-            letterOutput.textContent = `受文者：${petitioner}\n\n主旨：${letterSubjectText}，復如說明，請 查照。\n\n說明：\n一、復 台端陳情內容。\n二、關於旨揭陳情訴求，本會意見如下：\n    ${finalSummary}\n\n正本：${petitioner}\n副本：\n\n（本案依規定採「以稿代簽」辦理，經 貴長官核可後逕行發文）`;
-        }
-
-        document.getElementById('outputSection').style.display = 'block';
-        document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
-    }
-
-    async function callFreeAI(content, userSummary, subject) {
-        let promptText = `你現在是台灣政府機關的公文專家。現有民眾陳情案資訊如下：\n`;
+            letterOutput.textContent = `受文者：${petitioner}\n\n主旨：${letterSubjectText}，復如說明，請 查照。\n\n說明：\n一、復 台端陳情內容。\n二、關於旨揭陳情訴求，本會意見如下：\n    ${placeholderText}\n\n正本：${petitioner}\n副本：\n\n（本案依規定採「以稿代簽」辦理，經 貴長官核
