@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人民陳情案「簽與函稿」AI 智慧生成器</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; line-height: 1.6; max-width: 850px; margin: 30px auto; padding: 20px; color: #333; background-color: #f5f7fa; }
+        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h2 { text-align: center; color: #2c3e50; border-bottom: 2px solid #34495e; padding-bottom: 15px; margin-top: 0; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #2c3e50; }
+        label .optional { font-size: 0.85em; color: #7f8c8d; font-weight: normal; }
+        label .required { font-size: 0.85em; color: #e74c3c; }
+        input[type="text"], textarea { width: 100%; padding: 12px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+        textarea { resize: vertical; }
+        
+        /* 簽稿模式選擇鈕樣式 */
+        .mode-container { display: flex; justify-content: center; margin: 20px 0; background: #eee; padding: 5px; border-radius: 25px; }
+        .mode-btn { flex: 1; text-align: center; padding: 10px 20px; cursor: pointer; border-radius: 20px; font-weight: bold; color: #555; transition: all 0.3s; }
+        .mode-btn.active { background-color: #2c3e50; color: #fff; }
+        
+        .btn-container { text-align: center; margin-top: 25px; }
+        .submit-btn { padding: 12px 40px; background-color: #2980b9; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; transition: background-color 0.2s; }
+        .submit-btn:hover { background-color: #3498db; }
+        .submit-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        
+        /* 輸出結果樣式 */
+        .output-section { margin-top: 30px; display: none; }
+        .output-box { padding: 20px; border: 1px dashed #2980b9; background: #fdfefe; border-radius: 4px; white-space: pre-wrap; font-family: "Courier New", Courier, monospace; font-size: 15px; margin-bottom: 25px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); line-height: 1.8; }
+        .output-title { font-weight: bold; color: #2c3e50; margin-bottom: 8px; font-size: 1.1em; border-left: 4px solid #2980b9; padding-left: 8px; }
+        
+        /* AI 處理中動畫 */
+        .loading { display: none; text-align: center; color: #2980b9; font-weight: bold; margin: 15px 0; }
+        .ai-badge { background-color: #d4edda; color: #155724; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: normal; margin-left: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>人民陳情案「簽與函稿」AI 智慧生成器</h2>
+    
+    <!-- 1. 陳情人 -->
+    <div class="form-group">
+        <label for="petitioner">1. 陳情人 <span class="optional">（選填，若不填則預設為「陳情人」）</span>：</label>
+        <input type="text" id="petitioner" placeholder="例：張先生（或留空）">
+    </div>
+
+    <!-- 2. 陳情內容 -->
+    <div class="form-group">
+        <label for="content">2. 陳情內容 <span class="required">（必填）</span>：</label>
+        <textarea id="content" rows="4" placeholder="請輸入民眾陳情之核心具體訴求..."></textarea>
+    </div>
+
+    <!-- 3. 回覆大要 -->
+    <div class="form-group">
+        <label for="summary">3. 回覆大要 <span class="optional">（選填，留空將自動啟動 Gemini AI 搜尋擬答）</span>：</label>
+        <textarea id="summary" rows="4" placeholder="請輸入擬回覆之重點意見...若留空，系統將呼叫 Gemini AI 依據陳情內容自動模擬合適的公文回覆要點。"></textarea>
+    </div>
+
+    <!-- 4. 辦理方式切換鍵 -->
+    <label>4. 請選擇公文辦理方式：</label>
+    <div class="mode-container">
+        <div class="mode-btn active" id="btnBoth" onclick="setMode('both')">簽稿併陳</div>
+        <div class="mode-btn" id="btnDraftOnly" onclick="setMode('draftOnly')">以稿代簽</div>
+    </div>
+
+    <!-- 送出按鈕與讀取狀態 -->
+    <div class="btn-container">
+        <button class="submit-btn" id="submitBtn" onclick="generateDraft()">一鍵生成公文稿件</button>
+    </div>
+    <div class="loading" id="loadingText">⏳ Gemini AI 正在研議陳情內容並撰寫公文擬答，請稍候...</div>
+
+    <!-- 結果輸出區 -->
+    <div id="outputSection" class="output-section">
+        <div id="signBlock">
+            <div class="output-title">【簽呈範本】<span id="aiSignBadge"></span></div>
+            <div id="signOutput" class="output-box"></div>
+        </div>
+
+        <div id="letterBlock">
+            <div class="output-title">【函稿範本】<span id="aiLetterBadge"></span></div>
+            <div id="letterOutput" class="output-box"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ⚠️ 請在此處填入您的 Gemini API Key
+    const GEMINI_API_KEY = "請在此處填入您的Gemini_API_KEY"; 
+    
+    let currentMode = 'both'; // 預設為簽稿併陳
+
+    // 切換「簽稿併陳」或「以稿代簽」的按鈕邏輯
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('btnBoth').classList.toggle('active', mode === 'both');
+        document.getElementById('btnDraftOnly').classList.toggle('active', mode === 'draftOnly');
+    </div>
+
+    // 主生成函式
+    async function generateDraft() {
+        let petitioner = document.getElementById('petitioner').value.trim();
+        const content = document.getElementById('content').value.trim();
+        let summary = document.getElementById('summary').value.trim();
+
+        if (!content) {
+            alert("錯誤：「陳情內容」為必填欄位！");
+            document.getElementById('content').focus();
+            return;
+        }
+
+        if (!petitioner) petitioner = "陳情人";
+        
+        let isAiGenerated = false;
+
+        // 如果「回覆大要」留空，觸發 AI 生成
+        if (!summary) {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("請在此處填入")) {
+                alert("提示：您未填寫「回覆大要」，且網頁尚未設定 Gemini API Key。\n目前將先以暫留空欄位生成，若要啟用 AI 自動擬答，請將 API Key 填入網頁原始碼中。");
+                summary = "（請於此處手動補充回覆大要與法規依據）";
+            } else {
+                isAiGenerated = true;
+                toggleLoading(true);
+                try {
+                    summary = await fetchGeminiReply(content);
+                } catch (error) {
+                    console.error(error);
+                    summary = "（連線 Gemini 失敗，請手動補充回覆大要）";
+                    isAiGenerated = false;
+                }
+                toggleLoading(false);
+            }
+        }
+
+        // 標記是否為 AI 生成的標籤
+        const badgeHtml = isAiGenerated ? '<span class="ai-badge">Gemini AI 智慧擬答</span>' : '';
+        document.getElementById('aiSignBadge').innerHTML = badgeHtml;
+        document.getElementById('aiLetterBadge').innerHTML = badgeHtml;
+
+        // 根據選擇的模式組合公文內容
+        if (currentMode === 'both') {
+            // 【簽稿併陳】
+            const signText = `主旨：關於 ${petitioner} 陳情案，擬辦意見如說明，請 核示。\n\n說明：\n一、依據 ${petitioner} 意見辦理。\n二、本案陳情核心內容略以：\n    ${content}\n三、經查與研議，本案擬擬答復要點如下：\n    ${summary}\n四、檢陳回覆函稿乙份。\n\n擬辦：奉核後，稿隨文發。`;
+            const letterText = `受文者：${petitioner}\n\n主旨：有關 台端陳情事項，復如說明，請 查照。\n\n說明：\n一、復 台端陳情內容。\n二、關於旨揭陳情訴求，說明如下：\n    ${summary}`;
+            
+            document.getElementById('signOutput').textContent = signText;
+            document.getElementById('letterOutput').textContent = letterText;
+            document.getElementById('signBlock').style.display = 'block';
+        } else {
+            // 【以稿代簽】
+            const letterText = `受文者：${petitioner}\n\n主旨：有關 台端陳情事項，復如說明，請 查照。\n\n說明：\n一、復 台端陳情內容。\n二、關於旨揭陳情訴求，說明如下：\n    ${summary}\n\n正本：${petitioner}\n副本：\n\n（本案依規定採「以稿代簽」辦理，經 貴長官核可後逕行發文）`;
+            
+            document.getElementById('letterOutput').textContent = letterText;
+            document.getElementById('signBlock').style.display = 'none'; // 隱藏簽呈
+        }
+
+        // 顯示結果區並平滑捲動
+        document.getElementById('outputSection').style.display = 'block';
+        document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // 呼叫 Gemini API 的非同步函式
+    async function fetchGeminiReply(userContent) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        
+        // 建立給 AI 的 Prompt 指引，確保產出的語氣符合公文回覆民眾的基調
+        const prompt = `你現在是台灣政府機關的公文專家。現有民眾陳情內容如下：\n「${userContent}」\n\n請針對上述陳情內容，站在政府機關依法行政、客觀回覆的立場，直接生成一段長度約150-300字的「回覆要點大要」。\n要求：\n1. 語氣必須客觀、委婉、公務專業、合乎禮貌。\n2. 不要包含公文的主旨或受文者等結構，只要提供回覆民眾說明的實質核心內容即可。\n3. 如果陳情內容缺少具體事證，請在回覆中委婉說明「請提供具體事證以便進一步查處」。\n4. 直接輸出回覆內容，不要有任何前言或「好的，以下是...」等贅詞。`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        });
+
+        if (!response.ok) throw new Error("Gemini API 回傳錯誤");
+        
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text.trim();
+    }
+
+    // 切換載入中狀態
+    function toggleLoading(isLoading) {
+        document.getElementById('loadingText').style.display = isLoading ? 'block' : 'none';
+        document.getElementById('submitBtn').disabled = isLoading;
+        if (isLoading) document.getElementById('outputSection').style.display = 'none';
+    }
+</script>
+</body>
+</html>
