@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>人民陳情案「簽與函稿」智慧生成小工具 v9.0 穩定版</title>
+    <title>人民陳情案「簽與函稿」智慧生成小工具 v9.1 終極相容版</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; line-height: 1.6; max-width: 850px; margin: 30px auto; padding: 20px; background-color: #f5f7fa; }
         .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
@@ -36,7 +36,7 @@
 <body>
 
 <div class="container">
-    <h2>人民陳情案「簽與函稿」智慧生成小工具 (免Key穩定版)</h2>
+    <h2>人民陳情案「簽與函稿」智慧生成小工具 (v9.1 終極相容版)</h2>
     
     <div class="form-row">
         <div class="form-group">
@@ -50,7 +50,7 @@
     </div>
 
     <div class="form-group">
-        <label for="subject">3. 陳情主旨 <span class="optional">（選填，將自動融入公文與 AI 指令中）</span>：</label>
+        <label for="subject">3. 陳情主旨 <span class="optional">（選填）</span>：</label>
         <input type="text" id="subject" placeholder="例：反映程序不當、反映設備損壞">
     </div>
 
@@ -61,7 +61,7 @@
 
     <div class="form-group">
         <label for="summary">5. 回覆大要/擬答重點 <span class="optional">（選填）</span>：</label>
-        <textarea id="summary" rows="3" placeholder="請輸入簡短擬答重點（如：不符規定拒絕），若留空則交由 AI 從無到有發揮。"></textarea>
+        <textarea id="summary" rows="3" placeholder="請輸入簡短擬答重點，若留空則交由 AI 從無到有發揮。"></textarea>
     </div>
 
     <label>6. 請選擇公文辦理方式：</label>
@@ -91,11 +91,11 @@
 </div>
 
 <script>
-    let currentMode = 'both'; 
-    let generatedPrompt = "";
+    var currentMode = 'both'; 
+    var generatedPrompt = "";
 
     window.onload = function() {
-        const today = new Date().toISOString().split('T')[0];
+        var today = new Date().toISOString().split('T')[0];
         document.getElementById('receiveDate').value = today;
     };
 
@@ -111,66 +111,91 @@
     }
 
     function generateDraft() {
-        let petitioner = document.getElementById('petitioner').value.trim() || "陳情人";
-        let subject = document.getElementById('subject').value.trim();
-        let content = document.getElementById('content').value.trim();
-        let summary = document.getElementById('summary').value.trim();
-        let receiveDateRaw = document.getElementById('receiveDate').value;
+        var petitioner = document.getElementById('petitioner').value.trim() || "陳情人";
+        var subject = document.getElementById('subject').value.trim();
+        var content = document.getElementById('content').value.trim();
+        var summary = document.getElementById('summary').value.trim();
+        var receiveDateRaw = document.getElementById('receiveDate').value;
         
         if (!content) { 
             alert("「陳情內容」為必填項目。"); 
             return; 
         }
 
-        let dateString = "____年__月__日";
+        var dateString = "____年__月__日";
         if (receiveDateRaw) {
-            const dateParts = receiveDateRaw.split('-');
-            const year = parseInt(dateParts[0]) - 1911;
-            const month = parseInt(dateParts[1]);
-            const day = parseInt(dateParts[2]);
-            dateString = `民國 ${year} 年 ${month} 月 ${day} 日`;
+            var dateParts = receiveDateRaw.split('-');
+            var year = parseInt(dateParts[0]) - 1911;
+            var month = parseInt(dateParts[1]);
+            var day = parseInt(dateParts[2]);
+            dateString = "民國 " + year + " 年 " + month + " 月 " + day + " 日";
         }
 
-        // 1. 建立給 AI 看的終極提示詞
-        generatedPrompt = `你現在是台灣政府機關的公文專家。現有民眾陳情案資訊如下：\n`;
-        if (subject) generatedPrompt += `【重要背景：陳情主旨】：${subject}\n`;
-        generatedPrompt += `【陳情內容】：「${content}」\n\n`;
+        // 1. 建立 AI 提示詞 (改用傳統字串相加，防卡死)
+        var p = "你現在是台灣政府機關的公文專家。現有民眾陳情案資訊如下：\n";
+        if (subject) {
+            p += "【重要背景：陳情主旨】：" + subject + "\n";
+        }
+        p += "【陳情內容】：「" + content + "」\n\n";
         
         if (summary) {
-            generatedPrompt += `【承辦人指示的核心裁量重點】：「${summary}」\n\n【任務】：請自動讀取承辦人輸入的這段簡短重點，將其「優化、潤飾與擴充」為一段結構完整、文字優雅、依法行政且客觀委婉的公務標準公文回覆。`;
+            p += "【承辦人指示的核心裁量重點】：「" + summary + "」\n\n【任務】：請自動讀取承辦人輸入的這段簡短重點，將其「優化、潤飾與擴充」為一段結構完整、文字優雅、依法行政且客觀委婉的公務標準公文回覆。";
         } else {
-            generatedPrompt += `【任務】：承辦人員目前「完全留空」未填寫回覆大要。請你直接「從無到有」為此陳情內容擬定一段客觀、專業、符合政府機關依法行政原則的標準擬答內文。`;
+            p += "【任務】：承辦人員目前「完全留空」未填寫回覆大要。請你直接「從無到有」為此陳情內容擬定一段客觀、專業、符合政府機關依法行政原則的標準擬答內文。";
         }
         
         if (subject) {
-            generatedPrompt += `\n\n【特別要求】：由於承辦人有提供陳情主旨為「${subject}」，請你在生成的擬答內容「第一句話」，必須主動點題（例如：開頭寫「關於 貴長官/台端反映【${subject}】一事，經查...」或「有關 貴長官/台端陳情【${subject}】案，本會意見如下：...」）。`;
+            p += "\n\n【特別要求】：由於承辦人有提供陳情主旨為「" + subject + "」，請你在生成的擬答內容「第一句話」，必須主動點題（例如：開頭寫「關於 台端反映【" + subject + "】一事，經查...」或「有關 台端陳情【" + subject + "】案，本會意見如下：...」）。";
         }
-        generatedPrompt += `\n\n【嚴格格式與語氣要求】：1. 語氣必須具備高度公務專業度，立場應客觀中立、委婉但堅定。請大量靈活運用公文特定用語（如：「經查…」、「按規定…」、「尚難照辦」、「尚請見諒」、「合予敘明」）。2. 請直接輸出回覆的實質核心要點內容。絕對不要包含公文的外殼結構（例如：不要寫主旨、說明、一、二等標號）。3. 絕對不要有任何聊天性質的前言、引言或結語。4. 字數控制在 150 字至 300 字之間。`;
+        p += "\n\n【嚴格格式與語氣要求】：1. 語氣必須具備高度公務專業度，立場應客觀中立、委婉但堅定。請大量靈活運用公文特定用語（如：「經查…」、「按規定…」、「尚難照辦」、「尚請見諒」、「合予敘明」）。2. 請直接輸出回覆的實質核心要點內容。絕對不要包含公文的外殼結構（例如：不要寫主旨、說明、一、二等標號）。3. 絕對不要有任何聊天性質的前言、引言或結語。4. 字數控制在 150 字至 300 字之間。";
 
+        generatedPrompt = p;
         document.getElementById('promptPreview').textContent = generatedPrompt;
 
-        // 2. 渲染公文外殼結構
-        let signSubjectText = `關於 ${petitioner} 於 ${dateString} 陳情案`;
-        let letterSubjectText = `有關 台端於 ${dateString} 陳情事項`;
-        let contentIntroText = "本案陳情核心內容略以：\n    ";
+        // 2. 建立公文結構
+        var signSubjectText = "關於 " + petitioner + " 於 " + dateString + " 陳情案";
+        var letterSubjectText = "有關 台端於 " + dateString + " 陳情事項";
+        var contentIntroText = "本案陳情核心內容略以：\n    ";
 
         if (subject) {
-            signSubjectText = `關於 ${petitioner} 於 ${dateString} 陳情「${subject}」案`;
-            letterSubjectText = `有關 台端於 ${dateString} 陳情「${subject}」事項`;
-            contentIntroText = `關於其陳情「${subject}」之一案，訴求核心略以：\n    `;
+            signSubjectText = "關於 " + petitioner + " 於 " + dateString + " 陳情「" + subject + "」案";
+            letterSubjectText = "有關 台端於 " + dateString + " 陳情「" + subject + "」事項";
+            contentIntroText = "關於其陳情「" + subject + "」之一案，訴求核心略以：\n    ";
         }
 
-        const signBlock = document.getElementById('signBlock');
-        const signOutput = document.getElementById('signOutput');
-        const letterOutput = document.getElementById('letterOutput');
-
-        // 把預留位置用顯眼的符號標示出來
-        let placeholderText = "【👉 請在此處貼上 AI 幫您產出的專業優化內文】";
+        var signBlock = document.getElementById('signBlock');
+        var signOutput = document.getElementById('signOutput');
+        var letterOutput = document.getElementById('letterOutput');
+        var placeholderText = "【👉 請在此處貼上 AI 幫您產出的專業優化內文】";
 
         if (currentMode === 'both') {
             signBlock.style.display = 'block';
-            signOutput.textContent = `主旨：${signSubjectText}，擬辦意見如說明，請 核示。\n\n說明：\n一、依據 ${petitioner} ${dateString} 陳情意見辦理。\n二、${contentIntroText}${content}\n三、經查與研議，本案擬擬答復要點如下：\n    ${placeholderText}\n四、檢陳回覆函稿乙份。\n\n擬辦：奉核後，稿隨文發。`;
-            letterOutput.textContent = `受文者：${petitioner}\n\n主旨：${letterSubjectText}，復如說明，請 查照。\n\n說明：\n一、復 台端陳情內容。\n二、關於旨揭陳情訴求，本會意見如下：\n    ${placeholderText}`;
+            signOutput.textContent = "主旨：" + signSubjectText + "，擬辦意見如說明，請 核示。\n\n說明：\n一、依據 " + petitioner + " " + dateString + " 陳情意見辦理。\n二、" + contentIntroText + content + "\n三、經查與研議，本案擬擬答復要點如下：\n    " + placeholderText + "\n四、檢陳回覆函稿乙份。\n\n擬辦：奉核後，稿隨文發。";
+            letterOutput.textContent = "受文者：" + petitioner + "\n\n主旨：" + letterSubjectText + "，復如說明，請 查照。\n\n說明：\n一、復 台端陳情內容。\n二、關於旨揭陳情訴求，本會意見如下：\n    " + placeholderText;
         } else {
             signBlock.style.display = 'none';
-            letterOutput.textContent = `受文者：${petitioner}\n\n主旨：${letterSubjectText}，復如說明，請 查照。\n\n說明：\n一、復 台端陳情內容。\n二、關於旨揭陳情訴求，本會意見如下：\n    ${placeholderText}\n\n正本：${petitioner}\n副本：\n\n（本案依規定採「以稿代簽」辦理，經 貴長官核
+            letterOutput.textContent = "受文者：" + petitioner + "\n\n主旨：" + letterSubjectText + "，復如說明，請 查照。\n\n說明：\n一、復 台端陳情內容。\n二、關於旨揭陳情訴求，本會意見如下：\n    " + placeholderText + "\n\n正本：" + petitioner + "\n副本：\n\n（本案依規定採「以稿代簽」辦理，經 貴長官核可後逕行發文）";
+        }
+
+        document.getElementById('outputSection').style.display = 'block';
+    }
+
+    function copyPromptText() {
+        if (!generatedPrompt) return;
+        
+        // 採用最傳統相容的複製方法
+        var textArea = document.createElement("textarea");
+        textArea.value = generatedPrompt;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            alert("📋 AI 提示詞已成功複製到剪貼簿！\n現在請切換到 ChatGPT 或 Gemini 網頁直接貼上（Ctrl+V）即可！");
+        } catch (err) {
+            alert("無法自動複製，請手動選取黃色框框內的文字進行複製。");
+        }
+        document.body.removeChild(textArea);
+    }
+</script>
+</body>
+</html>
