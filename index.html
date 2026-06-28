@@ -185,7 +185,6 @@
             // 真正串接 Google Gemini API 的處理邏輯
     async function simulateGeminiAI(content, summary) {
         const API_KEY = "AQ.Ab8RN6KJt3vI5VD4VL1Bho8_XyhliYyRrCJT13D80UjM4hjocg"; 
-
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
         const trimmedSummary = summary.trim();
