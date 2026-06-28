@@ -184,32 +184,57 @@
 
         // 正確的 Gemini AI 處理邏輯：深度結合陳情內容與使用者重點，並進行法規與手冊潤飾
     function simulateGeminiAI(content, summary) {
+            // 真正串接 Google Gemini API 的處理邏輯
+    async function simulateGeminiAI(content, summary) {
+        // 🔑 填入您申請到那串以 AIzaSy 開頭的金鑰
+        const API_KEY = "AQ.Ab8RN6KJt3vI5VD4VL1Bho8_XyhliYyRrCJT13D80UjM4hjocg"; 
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+
         const trimmedSummary = summary.trim();
         const trimmedContent = content.trim();
 
-        // 狀況 A：回覆大要完全留空 -> 從無到有生成
+        // 建立給 Gemini 的公務擬稿指令 (Prompt)
+        let prompt = `你是一位精通台灣政府機關公文擬稿的資深主辦。請參酌《行政院文書處理手冊》規範（文字須簡淺明確、語氣客觀委婉、依法行政）與《全國法規資料庫》引用格式，針對以下陳情案件，擬定一段專業的「復函大要」（不需寫主旨、受文者，直接條列說明段內容即可）。\n\n`;
+        prompt += `【民眾陳情內容】：${trimmedContent}\n`;
+
         if (!trimmedSummary) {
+            prompt += `【回覆指導原則】：目前留空，請完全「從無到有」幫我生出一段符合法規研析、委婉拒絕或依法辦理的專業標準公文大要。`;
+        } else {
+            prompt += `【擬答關鍵字/核心重點】：${trimmedSummary}\n`;
+            prompt += `【回覆指導原則】：請務必包含上述關鍵字重點，將其「潤飾、擴充」成具備行政厚度、客觀委婉的公務標準公文文字。`;
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }]
+                })
+            });
+
+            const data = await response.json();
+            const aiText = data.candidates[0].content.parts[0].text;
+            
             return {
-                text: `一、有關您陳情反映「${trimmedContent.substring(0,30)}...」一案，經交由本機關權責單位依據現行法規審慎研析。\n` +
-                      `二、依行政院文書處理手冊之『依法行政、客觀委婉』原則，本案所請事項因與相關法定要件及程序規範尚有未合，歉難據以辦理。\n` +
-                      `三、為維護您的權益，本機關將持續密切關注全國法規資料庫相關法令之修訂動態，並於職權範圍內適時提供必要之行政協助。`,
-                status: `✨ <b>【Gemini AI 智能生成】</b>偵測到回覆大要留空，已自動根據陳情內容，依《行政院文書處理手冊》規範由無到有擬定完整公文。`
+                text: aiText,
+                status: trimmedSummary ? `✍️ <b>【Gemini AI 深度潤飾成功】</b>已依據您的重點與手冊規範完成擴充。` : `✨ <b>【Gemini AI 智能生成成功】</b>已由無到有為您擬定完整公文。`
+            };
+
+        } catch (error) {
+            console.error("API 請求失敗:", error);
+            return {
+                text: `（因金鑰尚未生效或設定錯誤，切換回模擬文字）：\n一、關於您陳情反映「${trimmedContent.substring(0,20)}...」事項，本機關刻正依法辦理中。\n二、本案（${trimmedSummary || '研議中'}），將秉持客觀委婉原則續辦。`,
+                status: `⚠️ <b>【提示】</b>目前正使用離線模擬。若要啟用真正的 Gemini AI，請在程式碼中填入您的 AIzaSy 金鑰。`
             };
         }
-        
-        // 狀況 B：有填寫簡單內容 -> 深度結合「陳情內容」與「填寫重點」進行擴充潤飾
-        return {
-            text: `一、關於您陳情反映「${trimmedContent.substring(0,25)}...」事項，經本機關衡酌現行法律規範與具體事實，因與法規之特定實體要件尚未能全然相符，衡諸依法行政原則，本案（${trimmedSummary}），目前歉難據以辦理。\n` +
-                  `二、依據行政院文書處理手冊規定，公務復函應秉持客觀委婉、簡淺明確之態度。本機關深切瞭解您的處境，針對您所述核心訴求，特此說明相關法規限制（請參酌全國法規資料庫最新令釋），尚祈諒察。\n` +
-                  `三、台端如對本案適用之法規條文仍有疑義，歡迎逕洽本機關承辦人，本機關未來仍將持續優化行政效能，以維護公眾權益。`,
-            status: `✍️ <b>【Gemini AI 深度潤飾】</b>已讀取您的提示「${trimmedSummary}」，並結合陳情主旨，自動擴充為符合《行政院文書處理手冊》與依法行政原則之標準公文。`
-        };
     }
+
 
     
 
     // 主生成程式
-    function generateDoc(type) {
+        async function generateDoc(type) {
         const petitioner = document.getElementById('petitioner').value.trim() || "某民眾";
         const incomingDateStr = document.getElementById('incomingDate').value;
         const content = document.getElementById('content').value.trim();
@@ -223,7 +248,7 @@
         const formattedDate = formatChineseDate(incomingDateStr);
         
         // 呼叫 AI 模擬器
-        const aiResult = simulateGeminiAI(content, summaryInput);
+        const aiResult = await simulateGeminiAI(content, summaryInput);
         
         // 顯示 AI 處理狀態提示
         const aiNotify = document.getElementById('aiNotify');
