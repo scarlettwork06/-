@@ -182,12 +182,10 @@
         return `中華民國 ${rocYear} 年 ${month} 月 ${day} 日`;
     }
 
-        // 正確的 Gemini AI 處理邏輯：深度結合陳情內容與使用者重點，並進行法規與手冊潤飾
-    function simulateGeminiAI(content, summary) {
             // 真正串接 Google Gemini API 的處理邏輯
     async function simulateGeminiAI(content, summary) {
-        // 🔑 填入您申請到那串以 AIzaSy 開頭的金鑰
         const API_KEY = "AQ.Ab8RN6KJt3vI5VD4VL1Bho8_XyhliYyRrCJT13D80UjM4hjocg"; 
+
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
         const trimmedSummary = summary.trim();
@@ -229,7 +227,7 @@
             };
         }
     }
-
+    }
 
     
 
