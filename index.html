@@ -183,9 +183,7 @@
         return `中華民國 ${rocYear} 年 ${month} 月 ${day} 日`;
     }
 
-    // 模擬 Gemini AI 的處理邏輯（實際應用時此處改為 fetch API）
-    function simulateGeminiAI(content, summary) {
-            // 優化後的 Gemini AI 處理邏輯：深度結合陳情內容與使用者重點，並進行法規與手冊潤飾
+        // 正確的 Gemini AI 處理邏輯：深度結合陳情內容與使用者重點，並進行法規與手冊潤飾
     function simulateGeminiAI(content, summary) {
         const trimmedSummary = summary.trim();
         const trimmedContent = content.trim();
@@ -209,13 +207,6 @@
         };
     }
 
-        }
-
-        // 狀況 C：使用者已經寫得很完整 -> 略微修飾
-        return {
-            text: summary,
-            status: "✅ 已直接採用您填寫的專業回覆大要導入公文稿中。"
-        };
     }
 
     // 主生成程式
