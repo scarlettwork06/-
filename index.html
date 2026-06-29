@@ -156,143 +156,124 @@
 </div>
 
 <script>
-   // 網頁開啟時自動填入今天日期
-    window.onload = function() {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        document.getElementById('incomingDate').value = `${yyyy}-${mm}-${dd}`;
-    };
+    // 網頁開啟時自動填入今天日期
+    window.onload = function() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById('incomingDate').value = `${yyyy}-${mm}-${dd}`;
+    };
 
-    // 格式化日期為公文用的民國日期
-    function formatChineseDate(dateString) {
-        if (!dateString) return "____年__月__日";
-        const date = new Date(dateString);
-        const rocYear = date.getFullYear() - 1911;
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        return `中華民國 ${rocYear} 年 ${month} 月 ${day} 日`;
-    }
+    // 格式化日期為公文用的民國日期
+    function formatChineseDate(dateString) {
+        if (!dateString) {
+            return "____年__月__日";
+        }
+        const date = new Date(dateString);
+        const rocYear = date.getFullYear() - 1911;
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `中華民國 ${rocYear} 年 ${month} 月 ${day} 日`;
+    }
 
-    // 將 AI 的 Markdown 語法（例如 **粗體**）轉換成網頁排版
-    function formatMarkdownToHtml(text) {
-        if (!text) return "";
-        return text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
-            .replace(/^-\s+(.*)$/gm, '• $1')
-            .replace(/^#+\s+(.*)$/gm, '<strong>$1</strong>');
-    }
+    // 真正串接 Google Gemini API 的處理邏輯（方案二：動態金鑰版）
+    async function simulateGeminiAI(content, summary) {
+        // 1. 🔍 從瀏覽器記憶體嘗試讀取金鑰
+        let API_KEY = localStorage.getItem('gemini_api_key');
 
-    // 真正串接 Google Gemini API 的處理邏輯
-    async function simulateGeminiAI(content, summary) {
-        let API_KEY = localStorage.getItem('gemini_api_key');
+        // 2. 🔑 如果找不到金鑰，跳出彈出視窗要求使用者輸入
+        if (!API_KEY || API_KEY.trim() === "") {
+            API_KEY = prompt("【首次使用提示】\n請輸入您的 Google Gemini API 金鑰：\n(註：此工具不支援 AQ. 開頭之金鑰，請輸入 AIzaSy 開頭的標準金鑰)");
+            
+            if (API_KEY && API_KEY.trim() !== "") {
+                API_KEY = API_KEY.trim();
+                localStorage.setItem('gemini_api_key', API_KEY); // 幫同仁記住，下次不用再輸入
+            } else {
+                throw new Error("使用者取消輸入金鑰，中止 AI 生成。");
+            }
+        }
 
-        if (!API_KEY || API_KEY.trim() === "") {
-            API_KEY = prompt("【首次使用提示】\n請輸入您的 Google Gemini API 金鑰：\n(註：請輸入 AIzaSy 開頭的標準金鑰)");
-            if (API_KEY && API_KEY.trim() !== "") {
-                API_KEY = API_KEY.trim();
-                localStorage.setItem('gemini_api_key', API_KEY);
-            } else {
-                return { text: "❌ 使用者取消輸入金鑰，中止 AI 生成。", status: "⚠️ 未輸入 API 金鑰。" };
-            }
-        }
+        // 3. 🌐 設定對應的 API 網址
+        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
-        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
-        const trimmedSummary = summary ? summary.trim() : "";
-        const trimmedContent = content ? content.trim() : "";
+        const trimmedSummary = summary ? summary.trim() : "";
+        const trimmedContent = content ? content.trim() : "";
 
-        let promptText = `你是一位精通台灣政府機關公文擬稿的資深主辦。請參酌《行政院文書處理手冊》規範（文字須簡淺明確、語氣客觀委婉、依法行政）與《全國法規資料庫》引用格式，針對以下陳情案件，擬定一段專業的「復函大要」（不需寫主旨、受文者，直接條列說明段內容即可）。\n\n`;
-        promptText += `【民眾陳情內容】：${trimmedContent}\n`;
+        // 建立給 Gemini 的公務擬稿指令 (Prompt)
+        let prompt = `你是一位精通台灣政府機關公文擬稿的資深主辦。請參酌《行政院文書處理手冊》規範（文字須簡淺明確、語氣客觀委婉、依法行政）與《全國法規資料庫》引用格式，針對以下陳情案件，擬定一段專業的「復函大要」（不需寫主旨、受文者，直接條列說明段內容即可）。\n\n`;
+        prompt += `【民眾陳情內容】：${trimmedContent}\n`;
 
-        if (!trimmedSummary) {
-            promptText += `【回覆指導原則】：目前留空，請完全「從無到有」幫我生出一段符合法規研析、委婉拒絕或依法辦理的專業標準公文大要。`;
-        } else {
-            promptText += `【擬答關鍵字/核心重點】：${trimmedSummary}\n`;
-            promptText += `【回覆指導原則】：請務必包含上述關鍵字重點，將其「潤飾、擴充」成具備行政厚度、客觀委婉的公務標準公文文字。`;
-        }
+        if (!trimmedSummary) {
+            prompt += `【回覆指導原則】：目前留空，請完全「從無到有」幫我生出一段符合法規研析、委婉拒絕或依法辦理的專業標準公文大要。`;
+        } else {
+            prompt += `【擬答關鍵字/核心重點】：${trimmedSummary}\n`;
+            prompt += `【回覆指導原則】：請務必包含上述關鍵字重點，將其「潤飾、擴充」成具備行政厚度、客觀委婉的公務標準公文文字。`;
+        }
 
-        try {
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ role: "user", parts: [{ text: promptText }] }]
-                })
-            });
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ role: "user", parts: [{ text: prompt }] }]
+                })
+            });
 
-            const data = await response.json();
-            
-            if (data.error) {
-                if (data.error.code === 400) {
-                    localStorage.removeItem('gemini_api_key');
-                }
-                throw new Error(`Google 回傳錯誤 [${data.error.code}]: ${data.error.message}`);
-            }
+            const data = await response.json();
+            
+            // 💡 安全防護：解析 Google 回傳的真實錯誤原因
+            if (data.error) {
+                // 如果是金鑰錯了，自動把記憶體清空，方便使用者下次重新輸入
+                if (data.error.code === 400 || data.error.status === "INVALID_ARGUMENT") {
+                    localStorage.removeItem('gemini_api_key');
+                }
+                throw new Error(`Google 回傳錯誤 [${data.error.code}]: ${data.error.message}`);
+            }
 
-            const aiText = data.candidates[0].content.parts[0].text;
-            return {
-                text: aiText,
-                status: trimmedSummary ? `✍️ <b>【Gemini AI 深度潤飾成功】</b>已依據您的重點與手冊規範完成擴充。` : `✨ <b>【Gemini AI 智能生成成功】</b>已由無到有為您擬定完整公文。`
-            };
-        } catch (error) {
-            console.error("API 請求失敗詳細原因:", error);
-            return {
-                text: `❌ 連線失敗，錯誤回報如下：\n${error.message}`,
-                status: `⚠️ <b>【連線失敗】</b>系統未能成功串接 Gemini AI，請檢查網路或 API 金鑰。`
-            };
-        }
-    }
-   const formattedDate = formatChineseDate(incomingDateStr);
-        let matchedReply = "";
+            const aiText = data.candidates[0].content.parts[0].text;
+            
+            return {
+                text: aiText,
+                status: trimmedSummary ? `✍️ <b>【Gemini AI 深度潤飾成功】</b>已依據您的重點與手冊規範完成擴充。` : `✨ <b>【Gemini AI 智能生成成功】</b>已由無到有為您擬定完整公文。`
+            };
 
-        // 🌐 【讀取網路上的雲端協作試算表】
-        const SPREADSHEET_ID = "1xoVm-6_paq-4juM7hXYbbbZ0hi0TsbsdCylMPDO7y4o"; 
-        const csvUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv`;
+        } catch (error) {
+            console.error("API 請求失敗詳細原因:", error);
+            
+            // 針對常見的 AQ. 金鑰或無效金鑰情境做人性化提示
+            let errorHint = error.message;
+            if (errorHint.includes("API_KEY_INVALID") || errorHint.includes("400")) {
+                errorHint += "\n\n💡 提示：這代表輸入的金鑰無效。請確認您使用的是【AIzaSy】開頭的標準金鑰。原金鑰已自動清除，請重新整理網頁即可重新輸入。";
+            }
 
-        try {
-            const response = await fetch(csvUrl);
-            if (response.ok) { 
-                const csvText = await response.text();
-                const rows = csvText.split("\n").map(row => row.split(","));
-                
-                for (let i = 1; i < rows.length; i++) {
-                    if (!rows[i][0] || !rows[i][1]) continue;
-                    
-                    const keywordsStr = rows[i][0].replace(/"/g, "");
-                    const replyText = rows[i][1].replace(/"/g, "").replace(/\\n/g, "\n"); 
-                    
-                    const keywords = keywordsStr.split(/[,，]/);
-                    const isHit = keywords.some(kw => kw.trim() && content.includes(kw.trim()));
-                    
-                    if (isHit) {
-                        matchedReply = replyText;
-                        break;
-                    }
-                }
-            } 
-        } catch (csvError) {
-            console.error("雲端知識庫讀取失敗，自動切換全 AI 模式:", csvError);
-        }
+            return {
+                text: `❌ 連線失敗，錯誤回報如下：\n${errorHint}`,
+                status: `⚠️ <b>【連線失敗】</b>系統未能成功串接 Gemini AI，已攔截錯誤訊息。`
+            };
+        }
+    }
 
-        let aiResult = { text: "", status: "" };
+    // 主生成程式
+    async function generateDoc(type) {
+        const petitioner = document.getElementById('petitioner').value.trim() || "某民眾";
+        const incomingDateStr = document.getElementById('incomingDate').value;
+        const content = document.getElementById('content').value.trim();
+        const summaryInput = document.getElementById('summary').value;
 
-        // 🔍 步驟二：判斷要用線上歷史紀錄還是啟動 AI
-        if (matchedReply !== "") {
-            aiResult.text = matchedReply;
-            aiResult.status = `📚 <b>【比對雲端知識庫成功】</b>已自動擷取線上協作文件之標準回覆，未消耗 AI 額度。`;
-        } else {
-            // 沒命中，交給 Gemini AI 處理
-            aiResult = await simulateGeminiAI(content, summaryInput);
-            if (!aiResult || aiResult.text.startsWith('❌')) return;
-        }
-const aiNotify = document.getElementById('aiNotify');
-        aiNotify.innerHTML = aiResult.status;
-        
-        // ...後面維持原樣...
+        if (!content) {
+            alert("請填寫「陳情內容」後再行生成！");
+            return;
+        }
+
+        const formattedDate = formatChineseDate(incomingDateStr);
         
-       
+        // 呼叫 AI 模擬器
+        const aiResult = await simulateGeminiAI(content, summaryInput);
+        
+        // 顯示 AI 處理狀態提示
+        const aiNotify = document.getElementById('aiNotify');
+        aiNotify.innerHTML = aiResult.status;
 
         const container = document.getElementById('documentContainer');
         container.innerHTML = ""; // 清空舊資料
@@ -307,7 +288,7 @@ const aiNotify = document.getElementById('aiNotify');
 一、依據 ${formattedDate} 移文及陳情人陳情內容辦理。
 二、本案核心訴求為：「${content}」。
 三、本案管轄及法規研析：
-    ${formatMarkdownToHtml(aiResult.text)}
+    ${aiResult.text}
 
 <b>擬辦：</b>
 一、本案文稿擬經奉核後，即行文復知陳情人。
@@ -327,7 +308,7 @@ const aiNotify = document.getElementById('aiNotify');
 <b>說明：</b>
 一、依據您${formattedDate}之陳情意見辦理。
 二、復文大要：
-    ${formatMarkdownToHtml(aiResult.text)}
+    ${aiResult.text}
 三、感謝您對公共事務的關心，如對本案仍有法規適用之疑義，歡迎逕洽本機關承辦人。
 </div>`;
 
@@ -353,3 +334,5 @@ const aiNotify = document.getElementById('aiNotify');
 </body>
 </html>
  
+這一版我還算滿意
+我有一個表格式的WORD檔，有記載曾經的「陳情內容」及「回覆內容」，如何讓這網站除了AI外，若有相同陳情內容發生，可以用擷取曾經的回覆內容處理
