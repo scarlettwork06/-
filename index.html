@@ -51,15 +51,32 @@
             content: " *";
             color: #e53e3e;
         }
-        .btn-group {
-            <div style="margin-top: 10px; text-align: center;">
-    <button onclick="resetKey()" style="background-color: #718096; padding: 5px 10px; font-size: 12px;">⚙️ 重設 API 金鑰</button>
-</div>
-
+        .btn-group {          
             margin-top: 25px;
             display: flex;
             gap: 15px;
         }
+    /* 新增一個顯示金鑰狀態的區塊樣式 */
+    .api-status-box {
+        text-align: center;
+        margin: 20px 0;
+        padding: 10px;
+        background: #edf2f7;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+</style>
+
+<!-- 在 container 內，btn-group 下方加入重設按鈕區塊 -->
+<div id="statusContainer" class="api-status-box"></div>
+
+<div class="btn-group">
+    <button class="btn-sign-draft" onclick="generateDoc('併陳')">📝 簽稿併陳</button>
+    <button class="btn-replace" onclick="generateDoc('代簽')">🚀 以稿代簽</button>
+</div>
+
+
+        
         button {
             flex: 1;
             padding: 12px;
@@ -160,6 +177,39 @@
 </div>
 
 <script>
+    
+    window.onload = function() {
+        // 1. 初始化日期
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById('incomingDate').value = `${yyyy}-${mm}-${dd}`;
+
+        // 2. 初始化 API 金鑰顯示
+        updateStatusDisplay();
+    };
+
+    function updateStatusDisplay() {
+        const key = localStorage.getItem('gemini_api_key');
+        const statusContainer = document.getElementById('statusContainer');
+        statusContainer.innerHTML = key ? 
+            "✅ API 金鑰已設定 <button onclick='updateApiKey()'>修改</button>" : 
+            "⚠️ 尚未設定 API 金鑰 <button onclick='updateApiKey()'>立即設定</button>";
+    }
+
+    function updateApiKey() {
+        const newKey = prompt("請輸入您的 Google Gemini API 金鑰 (AIzaSy 開頭)：");
+        if (newKey) {
+            localStorage.setItem('gemini_api_key', newKey.trim());
+            alert("金鑰已儲存！");
+            updateStatusDisplay(); // 更新介面文字
+        }
+    }
+    
+    // 其他原有的函數 (formatChineseDate, simulateGeminiAI, generateDoc...) 放在下方即可
+</script>
+
     // 核心：將設定與檢核模組化
 function getApiKey() {
     return localStorage.getItem('gemini_api_key');
