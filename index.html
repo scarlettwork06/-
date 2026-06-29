@@ -177,13 +177,24 @@
         return `中華民國 ${rocYear} 年 ${month} 月 ${day} 日`;
     }
 
-    // 真正串接 Google Gemini API 的處理邏輯
-        // 真正串接 Google Gemini API 的處理邏輯
-   // 真正串接 Google Gemini API 的處理邏輯
+    // 真正串接 Google Gemini API 的處理邏輯（方案二：動態金鑰版）
     async function simulateGeminiAI(content, summary) {
-        const API_KEY = "AQ.Ab8RN6LfKNVbgk2hiLctkXIrSyECgkHwWD3tFugKyo0vIfKuKg"; 
-        
-        // ⭕ 解決 CORS 機制：將金鑰重新掛回網址參數傳遞
+        // 1. 🔍 從瀏覽器記憶體嘗試讀取金鑰
+        let API_KEY = localStorage.getItem('gemini_api_key');
+
+        // 2. 🔑 如果找不到金鑰，跳出彈出視窗要求使用者輸入
+        if (!API_KEY || API_KEY.trim() === "") {
+            API_KEY = prompt("【首次使用提示】\n請輸入您的 Google Gemini API 金鑰：\n(註：此工具不支援 AQ. 開頭之金鑰，請輸入 AIzaSy 開頭的標準金鑰)");
+            
+            if (API_KEY && API_KEY.trim() !== "") {
+                API_KEY = API_KEY.trim();
+                localStorage.setItem('gemini_api_key', API_KEY); // 幫同仁記住，下次不用再輸入
+            } else {
+                throw new Error("使用者取消輸入金鑰，中止 AI 生成。");
+            }
+        }
+
+        // 3. 🌐 設定對應的 API 網址
         const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
         const trimmedSummary = summary ? summary.trim() : "";
@@ -203,24 +214,21 @@
         try {
             const response = await fetch(url, {
                 method: "POST",
-                headers: { 
-                    "Content-Type": "application/json"
-                    // ⭕ 移除 x-goog-api-key 標頭，改用網址參數，避免觸發前端網頁 CORS 阻擋關卡
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    contents: [{ 
-                        role: "user",
-                        parts: [{ text: prompt }] 
-                    }]
+                    contents: [{ role: "user", parts: [{ text: prompt }] }]
                 })
             });
 
             const data = await response.json();
             
-            // 💡 安全防護：如果金鑰其實沒開通成功，Google 會回傳 error 欄位，這時手動抓出來看原因
+            // 💡 安全防護：解析 Google 回傳的真實錯誤原因
             if (data.error) {
-                console.error("Google API 回傳錯誤:", data.error);
-                throw new Error(data.error.message);
+                // 如果是金鑰錯了，自動把記憶體清空，方便使用者下次重新輸入
+                if (data.error.code === 400 || data.error.status === "INVALID_ARGUMENT") {
+                    localStorage.removeItem('gemini_api_key');
+                }
+                throw new Error(`Google 回傳錯誤 [${data.error.code}]: ${data.error.message}`);
             }
 
             const aiText = data.candidates[0].content.parts[0].text;
@@ -232,9 +240,16 @@
 
         } catch (error) {
             console.error("API 請求失敗詳細原因:", error);
+            
+            // 針對常見的 AQ. 金鑰或無效金鑰情境做人性化提示
+            let errorHint = error.message;
+            if (errorHint.includes("API_KEY_INVALID") || errorHint.includes("400")) {
+                errorHint += "\n\n💡 提示：這代表輸入的金鑰無效。請確認您使用的是【AIzaSy】開頭的標準金鑰。原金鑰已自動清除，請重新整理網頁即可重新輸入。";
+            }
+
             return {
-                text: `（因金鑰尚未生效或設定錯誤，切換回模擬文字）：\n一、關於您陳情反映「${trimmedContent.substring(0,20)}...」事項，本機關刻正依法辦理中。\n二、本案（${trimmedSummary || '研議中'}），將秉持客觀委婉原則續辦。`,
-                status: `⚠️ <b>【提示】</b>目前正使用離線模擬。若要啟用真正的 Gemini AI，請在程式碼中填入您的 AIzaSy 金鑰。`
+                text: `❌ 連線失敗，錯誤回報如下：\n${errorHint}`,
+                status: `⚠️ <b>【連線失敗】</b>系統未能成功串接 Gemini AI，已攔截錯誤訊息。`
             };
         }
     }
@@ -307,6 +322,12 @@
         // 秀出結果區塊並滾動到該處
         document.getElementById('outputSection').style.display = 'block';
         window.scrollTo({ top: document.getElementById('outputSection').offsetTop, behavior: 'smooth' });
+    }
+
+    // 💡 額外加碼功能：手動重設金鑰的快捷設定（可在主控台輸入 resetKey() 或未來做按鈕）
+    function resetKey() {
+        localStorage.removeItem('gemini_api_key');
+        alert('已清除記憶的金鑰！下次生成時會重新詢問。');
     }
 </script>
 
