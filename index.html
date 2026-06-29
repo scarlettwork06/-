@@ -156,8 +156,16 @@
 </div>
 
 <script>
-  <script>
-    // 💡 在這裡補上漏掉的排版函數（直接複製下方這 9 行貼上）
+function formatMarkdownToHtml(text) {
+    if (!text) return "";
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+        .replace(/^[-\*]\s+(.*)$/gm, '• $1')
+        .replace(/^#+\s+(.*)$/gm, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>'); // 修正換行，才不會全部擠在一起
+}
+  // 💡 在這裡補上漏掉的排版函數（直接複製下方這 9 行貼上）
     function formatMarkdownToHtml(text) {
         if (!text) return "";
         return text
@@ -320,7 +328,7 @@
 <b>說明：</b>
 一、依據您${formattedDate}之陳情意見辦理。
 二、復文大要：
-    ${aiResult.text}
+    ${formatMarkdownToHtml(aiResult.text)}
 三、感謝您對公共事務的關心，如對本案仍有法規適用之疑義，歡迎逕洽本機關承辦人。
 </div>`;
 
