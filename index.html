@@ -181,10 +181,17 @@
     async function simulateGeminiAI(content, summary) {
         // 請記得在這裡換上以 AIzaSy 開頭的 API 金鑰
         const API_KEY = "AQ.Ab8RN6ICO1b7gc0CLUMyfPecEnFmClqmRDZvv2xcXL5bSrE4fw"; 
-        const url = `const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            // 真正串接 Google Gemini API 的處理邏輯
+    async function simulateGeminiAI(content, summary) {
+        const API_KEY = "AQ.Ab8RN6ICO1b7gc0CLUMyfPecEnFmClqmRDZvv2xcXL5bSrE4fw"; 
+        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+
+        const trimmedSummary = summary ? summary.trim() : "";
+        const trimmedContent = content.trim();
+
 }`;
 
-        const trimmedSummary = summary.trim();
+        summary ? summary.trim() :;
         const trimmedContent = content.trim();
 
         // 建立給 Gemini 的公務擬稿指令 (Prompt)
