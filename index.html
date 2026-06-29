@@ -198,14 +198,18 @@
             prompt += `【回覆指導原則】：請務必包含上述關鍵字重點，將其「潤飾、擴充」成具備行政厚度、客觀委婉的公務標準公文文字。`;
         }
 
-        try {
+                try {
             const response = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }]
+                    contents: [{ 
+                        role: "user",
+                        parts: [{ text: prompt }] 
+                    }]
                 })
             });
+
 
             const data = await response.json();
             const aiText = data.candidates[0].content.parts[0].text;
