@@ -157,85 +157,7 @@
 
 <script>
    
-    // 網頁開啟時自動填入今天日期
-    window.onload = function() {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        document.getElementById('incomingDate').value = `${yyyy}-${mm}-${dd}`;
-    };
-
-    // 格式化日期為公文用的民國日期
-    function formatChineseDate(dateString) {
-        if (!dateString) return "____年__月__日";
-        const date = new Date(dateString);
-        const rocYear = date.getFullYear() - 1911;
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        return `中華民國 ${rocYear} 年 ${month} 月 ${day} 日`;
-    }
-
-    // 真正串接 Google Gemini API 的處理邏輯
-    async function simulateGeminiAI(content, summary) {
-        let API_KEY = localStorage.getItem('gemini_api_key');
-
-        // 如果找不到金鑰，自動彈出視窗詢問
-        if (!API_KEY || API_KEY.trim() === "") {
-            API_KEY = prompt("【首次使用提示】\n請輸入您的 Google Gemini API 金鑰：\n(註：請輸入 AIzaSy 開頭的標準金鑰)");
-            if (API_KEY && API_KEY.trim() !== "") {
-                API_KEY = API_KEY.trim();
-                localStorage.setItem('gemini_api_key', API_KEY);
-            } else {
-                return { text: "❌ 使用者取消輸入金鑰，中止 AI 生成。", status: "⚠️ 未輸入 API 金鑰。" };
-            }
-        }
-
-        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
-        const trimmedSummary = summary ? summary.trim() : "";
-        const trimmedContent = content ? content.trim() : "";
-
-        let promptText = `你是一位精通台灣政府機關公文擬稿的資深主辦。請參酌《行政院文書處理手冊》規範（文字須簡淺明確、語氣客觀委婉、依法行政）與《全國法規資料庫》引用格式，針對以下陳情案件，擬定一段專業的「復函大要」（不需寫主旨、受文者，直接條列說明段內容即可）。\n\n`;
-        promptText += `【民眾陳情內容】：${trimmedContent}\n`;
-
-        if (!trimmedSummary) {
-            promptText += `【回覆指導原則】：目前留空，請完全「從無到有」幫我生出一段符合法規研析、委婉拒絕或依法辦理的專業標準公文大要。`;
-        } else {
-            promptText += `【擬答關鍵字/核心重點】：${trimmedSummary}\n`;
-            promptText += `【回覆指導原則】：請務必包含上述關鍵字重點，將其「潤飾、擴充」成具備行政厚度、客觀委婉的公務標準公文文字。`;
-        }
-
-        try {
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ role: "user", parts: [{ text: promptText }] }]
-                })
-            });
-
-            const data = await response.json();
-            
-            if (data.error) {
-                if (data.error.code === 400) {
-                    localStorage.removeItem('gemini_api_key');
-                }
-                throw new Error(`Google 回傳錯誤 [${data.error.code}]: ${data.error.message}`);
-            }
-
-            const aiText = data.candidates[0].content.parts[0].text;
-            return {
-                text: aiText,
-                status: trimmedSummary ? `✍️ <b>【Gemini AI 深度潤飾成功】</b>已依據您的重點與手冊規範完成擴充。` : `✨ <b>【Gemini AI 智能生成成功】</b>已由無到有為您擬定完整公文。`
-            };
-        } catch (error) {
-            console.error("API 請求失敗詳細原因:", error);
-            return {
-                text: `❌ 連線失敗，錯誤回報如下：\n${error.message}`,
-                status: `⚠️ <b>【連線失敗】</b>系統未能成功串接 Gemini AI，請檢查網路或 API 金鑰。`
-            };
-        }
-    }
+    
 // 主生成程式
     async function generateDoc(type) {
         const petitioner = document.getElementById('petitioner').value.trim() || "某民眾";
@@ -257,12 +179,36 @@
         const csvUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv`;
 
         try {
+            try {
             // 遠端抓取線上最新表格資料
             const response = await fetch(csvUrl);
-            const csvText = await response.text();
-            
-            // 簡單解析 CSV 每一列 (Row)
-            const rows = csvText.split("\n").map(row => row.split(","));
+            if (response.ok) { // 👈 確保有成功連線才執行解析
+                const csvText = await response.text();
+                
+                // 簡單解析 CSV 每一列 (Row)
+                const rows = csvText.split("\n").map(row => row.split(","));
+                
+                // 從第二列開始比對（跳過第一列標題）
+                for (let i = 1; i < rows.length; i++) {
+                    if (!rows[i][0] || !rows[i][1]) continue;
+                    
+                    // 去除 CSV 自動加上的雙引號
+                    const keywordsStr = rows[i][0].replace(/"/g, "");
+                    const replyText = rows[i][1].replace(/"/g, "").replace(/\\n/g, "\n"); 
+                    
+                    // 將關鍵字字串切成陣列進行比對
+                    const keywords = keywordsStr.split(/[,，]/);
+                    const isHit = keywords.some(kw => kw.trim() && content.includes(kw.trim()));
+                    
+                    if (isHit) {
+                        matchedReply = replyText;
+                        break;
+                    }
+                }
+            } // 👈 結束安全檢查
+        } catch (csvError) {
+            console.error("雲端知識庫讀取失敗，自動切換全 AI 模式:", csvError);
+        }
             
             // 從第二列開始比對（跳過第一列標題）
             for (let i = 1; i < rows.length; i++) {
