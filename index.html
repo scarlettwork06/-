@@ -199,9 +199,13 @@
         }
 
                 try {
+                    try {
             const response = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": API_KEY  // 👈 關鍵：必須在這裡把金鑰傳給 Google 驗證
+                },
                 body: JSON.stringify({
                     contents: [{ 
                         role: "user",
@@ -210,9 +214,9 @@
                 })
             });
 
-
             const data = await response.json();
             const aiText = data.candidates[0].content.parts[0].text;
+
             
             return {
                 text: aiText,
