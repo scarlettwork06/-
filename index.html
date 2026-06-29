@@ -156,6 +156,18 @@
 </div>
 
 <script>
+  <script>
+    // 💡 在這裡補上漏掉的排版函數（直接複製下方這 9 行貼上）
+    function formatMarkdownToHtml(text) {
+        if (!text) return "";
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+            .replace(/^-\s+(.*)$/gm, '• $1')
+            .replace(/^#+\s+(.*)$/gm, '<strong>$1</strong>');
+    }
+
+  
     // 網頁開啟時自動填入今天日期
     window.onload = function() {
         const today = new Date();
