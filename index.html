@@ -1,315 +1,285 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>人民陳情案「簽、函稿」自動生成器</title>
-    <style>
-        body {
-            font-family: "Microsoft JhengHei", sans-serif;
-            background-color: #f4f6f9;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-        }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        h2 {
-            color: #1a365d;
-            border-bottom: 2px solid #2b6cb0;
-            padding-bottom: 10px;
-            margin-top: 0;
-        }
-        .form-group {
-            margin-bottom: 18px;
-        }
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: bold;
-            color: #2d3748;
-        }
-        input[type="text"], input[type="date"], textarea, select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #cbd5e0;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 14px;
-        }
-        textarea {
-            resize: vertical;
-            height: 100px;
-        }
-        .required::after {
-            content: " *";
-            color: #e53e3e;
-        }
-        .btn-group {
-            margin-top: 25px;
-            display: flex;
-            gap: 15px;
-        }
-        button {
-            padding: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .btn-sign-draft {
-            flex: 2;
-            background-color: #2b6cb0;
-        }
-        .btn-sign-draft:hover {
-            background-color: #2c5282;
-        }
-        .btn-replace {
-            flex: 2;
-            background-color: #319795;
-        }
-        .btn-replace:hover {
-            background-color: #234e52;
-        }
-        .btn-reset {
-            flex: 1;
-            background-color: #e53e3e;
-            font-size: 14px;
-        }
-        .btn-reset:hover {
-            background-color: #9b2c2c;
-        }
-        .output-section {
-            margin-top: 30px;
-            display: none;
-        }
-        .document-box {
-            background: #fff;
-            border: 2px solid #333;
-            padding: 40px;
-            margin-bottom: 30px;
-            font-family: "標楷體", "DFKai-SB", serif;
-            font-size: 18px;
-            line-height: 1.8;
-            position: relative;
-            white-space: pre-wrap;
-        }
-        .doc-title {
-            text-align: center;
-            font-size: 26px;
-            font-weight: bold;
-            letter-spacing: 4px;
-            margin-bottom: 30px;
-        }
-        .ai-badge {
-            background-color: #ebf8ff;
-            color: #2b6cb0;
-            border: 1px solid #bee3f8;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            font-size: 14px;
-            font-family: Arial, sans-serif;
-        }
-        .key-status {
-            font-size: 13px;
-            color: #4a5568;
-            background: #edf2f7;
-            padding: 6px 12px;
-            border-radius: 4px;
-            display: inline-block;
-            margin-bottom: 15px;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人民陳情案「簽、函稿」自動生成器</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #1a365d;
+            border-bottom: 2px solid #2b6cb0;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+        input[type="text"], input[type="date"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        textarea {
+            resize: vertical;
+            height: 100px;
+        }
+        .required::after {
+            content: " *";
+            color: #e53e3e;
+        }
+        .btn-group {
+            margin-top: 25px;
+            display: flex;
+            gap: 15px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-sign-draft {
+            background-color: #2b6cb0;
+        }
+        .btn-sign-draft:hover {
+            background-color: #2c5282;
+        }
+        .btn-replace {
+            background-color: #319795;
+        }
+        .btn-replace:hover {
+            background-color: #234e52;
+        }
+        .output-section {
+            margin-top: 30px;
+            display: none;
+        }
+        .document-box {
+            background: #fff;
+            border: 2px solid #333;
+            padding: 40px;
+            margin-bottom: 30px;
+            font-family: "標楷體", "DFKai-SB", serif;
+            font-size: 18px;
+            line-height: 1.8;
+            position: relative;
+            white-space: pre-wrap;
+        }
+        .doc-title {
+            text-align: center;
+            font-size: 26px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            margin-bottom: 30px;
+        }
+        .ai-badge {
+            background-color: #ebf8ff;
+            color: #2b6cb0;
+            border: 1px solid #bee3f8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>人民陳情案「簽、函稿」生成器</h2>
-    
-    <div id="keyStatusDisplay" class="key-status">🔑 檢查金鑰狀態中...</div>
+    <h2>人民陳情案「簽、函稿」生成器</h2>
+    
+    <div class="form-group">
+        <label for="petitioner">陳情人 <span style="font-weight:normal; color:#718096;">(選填，留空則顯示「某民眾」)</span></label>
+        <input type="text" id="petitioner" placeholder="請輸入陳情人姓名或名稱">
+    </div>
 
-    <div class="form-group">
-        <label for="petitioner">陳情人 <span style="font-weight:normal; color:#718096;">(選填，留空則顯示「某民眾」)</span></label>
-        <input type="text" id="petitioner" placeholder="請輸入陳情人姓名或名稱">
-    </div>
+    <div class="form-group">
+        <label for="incomingDate">來文時間</label>
+        <input type="date" id="incomingDate">
+    </div>
 
-    <div class="form-group">
-        <label for="incomingDate">來文時間</label>
-        <input type="date" id="incomingDate">
-    </div>
+    <div class="form-group">
+        <label for="content" class="required">陳情內容</label>
+        <textarea id="content" placeholder="請輸入陳情人訴求、痛點或主要陳情內容..."></textarea>
+    </div>
 
-    <div class="form-group">
-        <label for="content" class="required">陳情內容</label>
-        <textarea id="content" placeholder="請輸入陳情人訴求、痛點或主要陳情內容..."></textarea>
-    </div>
+    <div class="form-group">
+        <label for="summary">回覆大要 <span style="font-weight:normal; color:#718096;">(選填，由 Gemini AI 自動優化/擬稿)</span></label>
+        <textarea id="summary" placeholder="留空：由 AI 依陳情內容從無到有生成。&#10;簡要填寫：例如輸入「不符規定拒絕」，由 AI 自動潤飾擴充。"></textarea>
+    </div>
 
-    <div class="form-group">
-        <label for="summary">回覆大要 <span style="font-weight:normal; color:#718096;">(選填，由 Gemini AI 自動優化/擬稿)</span></label>
-        <textarea id="summary" placeholder="留空：由 AI 依陳情內容從無到有生成。&#10;簡要填寫：例如輸入「不符規定拒絕」，由 AI 自動潤飾擴充。"></textarea>
-    </div>
+    <div style="margin-top: -10px; margin-bottom: 25px; font-size: 13px; color: #718096; display: flex; gap: 15px;">
+        <span>🔍 系統已內嵌：<a href="https://law.moj.gov.tw/" target="_blank" style="color: #2b6cb0; text-decoration: none; font-weight: bold;">全國法規資料庫</a> 檢索提示</span>
+        <span>📘 遵照：<a href="https://www.ey.gov.tw/" target="_blank" style="color: #2b6cb0; text-decoration: none; font-weight: bold;">行政院文書處理手冊</a> 擬稿標準（簡淺明確/客觀委婉）</span>
+    </div>
 
-    <div style="margin-top: -10px; margin-bottom: 25px; font-size: 13px; color: #718096; display: flex; gap: 15px;">
-        <span>🔍 系統已內嵌：<a href="https://law.moj.gov.tw/" target="_blank" style="color: #2b6cb0; text-decoration: none; font-weight: bold;">全國法規資料庫</a> 檢索提示</span>
-        <span>📘 遵照：<a href="https://www.ey.gov.tw/" target="_blank" style="color: #2b6cb0; text-decoration: none; font-weight: bold;">行政院文書處理手冊</a> 擬稿標準（簡淺明確/客觀委婉）</span>
-    </div>
 
-    <div class="btn-group">
-        <button class="btn-sign-draft" onclick="generateDoc('併陳')">📝 簽稿併陳</button>
-        <button class="btn-replace" onclick="generateDoc('代簽')">🚀 以稿代簽</button>
-        <button class="btn-reset" onclick="resetKey()">🔑 清除金鑰紀錄</button>
-    </div>
+    <div class="btn-group">
+        <button class="btn-sign-draft" onclick="generateDoc('併陳')">📝 簽稿併陳</button>
+        <button class="btn-replace" onclick="generateDoc('代簽')">🚀 以稿代簽</button>
+    </div>
 
-    <div id="outputSection" class="output-section">
-        <div id="aiNotify" class="ai-badge"></div>
-        <div id="documentContainer"></div>
-    </div>
+    <div id="outputSection" class="output-section">
+        <div id="aiNotify" class="ai-badge"></div>
+        <div id="documentContainer"></div>
+    </div>
 </div>
 
 <script>
-    // 網頁開啟時自動填入今天日期與更新金鑰看板
-    window.onload = function() {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        document.getElementById('incomingDate').value = `${yyyy}-${mm}-${dd}`;
-        updateKeyStatusBoard();
-    };
+    // 網頁開啟時自動填入今天日期
+    window.onload = function() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById('incomingDate').value = `${yyyy}-${mm}-${dd}`;
+    };
 
-    // 更新介面上的金鑰看板狀態
-    function updateKeyStatusBoard() {
-        const key = localStorage.getItem('gemini_api_key');
-        const board = document.getElementById('keyStatusDisplay');
-        if (key && key.trim() !== "") {
-            board.innerHTML = `🟢 <b>金鑰狀態：</b>已儲存 (開頭為 ${key.substring(0, 6)}...)`;
-            board.style.backgroundColor = "#c6f6d5";
-            board.style.color = "#22543d";
-        } else {
-            board.innerHTML = `⚪ <b>金鑰狀態：</b>尚未設定 (首次生成時將跳出詢問視窗)`;
-            board.style.backgroundColor = "#edf2f7";
-            board.style.color = "#4a5568";
-        }
-    }
+    // 格式化日期為公文用的民國日期
+    function formatChineseDate(dateString) {
+        if (!dateString) {
+            return "____年__月__日";
+        }
+        const date = new Date(dateString);
+        const rocYear = date.getFullYear() - 1911;
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `中華民國 ${rocYear} 年 ${month} 月 ${day} 日`;
+    }
 
-    // 格式化日期為公文用的民國日期
-    function formatChineseDate(dateString) {
-        if (!dateString) {
-            return "____年__月__日";
-        }
-        const date = new Date(dateString);
-        const rocYear = date.getFullYear() - 1911;
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        return `中華民國 ${rocYear} 年 ${month} 月 ${day} 日`;
-    }
+    // 真正串接 Google Gemini API 的處理邏輯（方案二：動態金鑰版）
+    async function simulateGeminiAI(content, summary) {
+        // 1. 🔍 從瀏覽器記憶體嘗試讀取金鑰
+        let API_KEY = localStorage.getItem('gemini_api_key');
 
-    // 真正串接 Google Gemini API 的處理邏輯
-    async function simulateGeminiAI(content, summary) {
-        let API_KEY = localStorage.getItem('gemini_api_key');
+        // 2. 🔑 如果找不到金鑰，跳出彈出視窗要求使用者輸入
+        if (!API_KEY || API_KEY.trim() === "") {
+            API_KEY = prompt("【首次使用提示】\n請輸入您的 Google Gemini API 金鑰：\n(註：此工具不支援 AQ. 開頭之金鑰，請輸入 AIzaSy 開頭的標準金鑰)");
+            
+            if (API_KEY && API_KEY.trim() !== "") {
+                API_KEY = API_KEY.trim();
+                localStorage.setItem('gemini_api_key', API_KEY); // 幫同仁記住，下次不用再輸入
+            } else {
+                throw new Error("使用者取消輸入金鑰，中止 AI 生成。");
+            }
+        }
 
-        if (!API_KEY || API_KEY.trim() === "") {
-            API_KEY = prompt("【首次使用提示】\n請輸入您的 Google Gemini API 金鑰：\n(註：此工具不支援 AQ. 開頭之金鑰，請輸入 AIzaSy 開頭的標準金鑰)");
-            
-            if (API_KEY && API_KEY.trim() !== "") {
-                API_KEY = API_KEY.trim();
-                localStorage.setItem('gemini_api_key', API_KEY);
-                updateKeyStatusBoard();
-            } else {
-                return {
-                    text: "❌ 動作已被中止：未輸入有效金鑰，無法連線至 AI 伺服器。",
-                    status: "⚠️ <b>【操作中止】</b>請設定有效金鑰後再試一次。"
-                };
-            }
-        }
+        // 3. 🌐 設定對應的 API 網址
+        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
-        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
-        const trimmedSummary = summary ? summary.trim() : "";
-        const trimmedContent = content ? content.trim() : "";
+        const trimmedSummary = summary ? summary.trim() : "";
+        const trimmedContent = content ? content.trim() : "";
 
-        let promptText = `你是一位精通台灣政府機關公文擬稿的資深主辦。請參酌《行政院文書處理手冊》規範（文字須簡淺明確、語氣客觀委婉、依法行政）與《全國法規資料庫》引用格式，針對以下陳情案件，擬定一段專業的「復函大要」（不需寫主旨、受文者，直接條列說明段內容即可）。\n\n`;
-        promptText += `【民眾陳情內容】：${trimmedContent}\n`;
+        // 建立給 Gemini 的公務擬稿指令 (Prompt)
+        let prompt = `你是一位精通台灣政府機關公文擬稿的資深主辦。請參酌《行政院文書處理手冊》規範（文字須簡淺明確、語氣客觀委婉、依法行政）與《全國法規資料庫》引用格式，針對以下陳情案件，擬定一段專業的「復函大要」（不需寫主旨、受文者，直接條列說明段內容即可）。\n\n`;
+        prompt += `【民眾陳情內容】：${trimmedContent}\n`;
 
-        if (!trimmedSummary) {
-            promptText += `【回覆指導原則】：目前留空，請完全「從無到有」幫我生出一段符合法規研析、委婉拒絕或依法辦理的專業標準公文大要。`;
-        } else {
-            promptText += `【擬答關鍵字/核心重點】：${trimmedSummary}\n`;
-            promptText += `【回覆指導原則】：請務必包含上述關鍵字重點，將其「潤飾、擴充」成具備行政厚度、客觀委婉的公務標準公文文字。`;
-        }
+        if (!trimmedSummary) {
+            prompt += `【回覆指導原則】：目前留空，請完全「從無到有」幫我生出一段符合法規研析、委婉拒絕或依法辦理的專業標準公文大要。`;
+        } else {
+            prompt += `【擬答關鍵字/核心重點】：${trimmedSummary}\n`;
+            prompt += `【回覆指導原則】：請務必包含上述關鍵字重點，將其「潤飾、擴充」成具備行政厚度、客觀委婉的公務標準公文文字。`;
+        }
 
-        try {
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ role: "user", parts: [{ text: promptText }] }]
-                })
-            });
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ role: "user", parts: [{ text: prompt }] }]
+                })
+            });
 
-            const data = await response.json();
-            
-            if (data.error) {
-                if (data.error.code === 400 || data.error.status === "INVALID_ARGUMENT") {
-                    localStorage.removeItem('gemini_api_key');
-                    updateKeyStatusBoard();
-                }
-                throw new Error(`Google 伺服器拒絕請求 [${data.error.code}]: ${data.error.message}`);
-            }
+            const data = await response.json();
+            
+            // 💡 安全防護：解析 Google 回傳的真實錯誤原因
+            if (data.error) {
+                // 如果是金鑰錯了，自動把記憶體清空，方便使用者下次重新輸入
+                if (data.error.code === 400 || data.error.status === "INVALID_ARGUMENT") {
+                    localStorage.removeItem('gemini_api_key');
+                }
+                throw new Error(`Google 回傳錯誤 [${data.error.code}]: ${data.error.message}`);
+            }
 
-            const aiText = data.candidates[0].content.parts[0].text;
-            
-            return {
-                text: aiText,
-                status: trimmedSummary ? `✍️ <b>【Gemini AI 深度潤飾成功】</b>已依據您的重點與手冊規範完成擴充。` : `✨ <b>【Gemini AI 智能生成成功】</b>已由無到有為您擬定完整公文。`
-            };
+            const aiText = data.candidates[0].content.parts[0].text;
+            
+            return {
+                text: aiText,
+                status: trimmedSummary ? `✍️ <b>【Gemini AI 深度潤飾成功】</b>已依據您的重點與手冊規範完成擴充。` : `✨ <b>【Gemini AI 智能生成成功】</b>已由無到有為您擬定完整公文。`
+            };
 
-        } catch (error) {
-            console.error("API 請求失敗詳細原因:", error);
-            let hint = error.message;
-            if (hint.includes("API_KEY_INVALID") || hint.includes("400")) {
-                hint += "\n\n💡 系統提示：這代表您目前輸入的金鑰是無效的。已為您自動清空快取，請確認您使用的是【AIzaSy】開頭的標準金鑰，並重新整理網頁再試一次。";
-            }
-            return {
-                text: `❌ 連線發生錯誤，回報如下：\n${hint}`,
-                status: `⚠️ <b>【連線失敗】</b>無法順利串接 API 服務。`
-            };
-        }
-    }
+        } catch (error) {
+            console.error("API 請求失敗詳細原因:", error);
+            
+            // 針對常見的 AQ. 金鑰或無效金鑰情境做人性化提示
+            let errorHint = error.message;
+            if (errorHint.includes("API_KEY_INVALID") || errorHint.includes("400")) {
+                errorHint += "\n\n💡 提示：這代表輸入的金鑰無效。請確認您使用的是【AIzaSy】開頭的標準金鑰。原金鑰已自動清除，請重新整理網頁即可重新輸入。";
+            }
 
-    // 主生成程式
-    async function generateDoc(type) {
-        const petitioner = document.getElementById('petitioner').value.trim() || "某民眾";
-        const incomingDateStr = document.getElementById('incomingDate').value;
-        const content = document.getElementById('content').value.trim();
-        const summaryInput = document.getElementById('summary').value;
+            return {
+                text: `❌ 連線失敗，錯誤回報如下：\n${errorHint}`,
+                status: `⚠️ <b>【連線失敗】</b>系統未能成功串接 Gemini AI，已攔截錯誤訊息。`
+            };
+        }
+    }
 
-        if (!content) {
-            alert("請填寫「陳情內容」後再行生成！");
-            return;
-        }
+    // 主生成程式
+    async function generateDoc(type) {
+        const petitioner = document.getElementById('petitioner').value.trim() || "某民眾";
+        const incomingDateStr = document.getElementById('incomingDate').value;
+        const content = document.getElementById('content').value.trim();
+        const summaryInput = document.getElementById('summary').value;
 
-        const formattedDate = formatChineseDate(incomingDateStr);
-        
-        // 呼叫實體 API 
-        const aiResult = await simulateGeminiAI(content, summaryInput);
-        
-        const aiNotify = document.getElementById('aiNotify');
-        aiNotify.innerHTML = aiResult.status;
+        if (!content) {
+            alert("請填寫「陳情內容」後再行生成！");
+            return;
+        }
 
-        const container = document.getElementById('documentContainer');
-        container.innerHTML = ""; 
+        const formattedDate = formatChineseDate(incomingDateStr);
+        
+        // 呼叫 AI 模擬器
+        const aiResult = await simulateGeminiAI(content, summaryInput);
+        
+        // 顯示 AI 處理狀態提示
+        const aiNotify = document.getElementById('aiNotify');
+        aiNotify.innerHTML = aiResult.status;
 
-        // 結構化公文文字定義
-        let signHtml = `
+        const container = document.getElementById('documentContainer');
+        container.innerHTML = ""; // 清空舊資料
+
+        // 結構化文字定義
+        let signHtml = `
 <div class="document-box">
 <div class="doc-title">簽</div>
 <b>主旨：</b>有關${petitioner}於${formattedDate}反映「${content.substring(0,20)}...」陳情案，擬具復函如附件，提請 鑒核。
@@ -318,14 +288,14 @@
 一、依據 ${formattedDate} 移文及陳情人陳情內容辦理。
 二、本案核心訴求為：「${content}」。
 三、本案管轄及法規研析：
-    ${aiResult.text}
+    ${aiResult.text}
 
 <b>擬辦：</b>
 一、本案文稿擬經奉核後，即行文復知陳情人。
 二、文存查。
 </div>`;
 
-        let draftHtml = `
+        let draftHtml = `
 <div class="document-box">
 <div class="doc-title">（機關全銜） 函稿</div>
 發文日期：${formattedDate}
@@ -338,27 +308,29 @@
 <b>說明：</b>
 一、依據您${formattedDate}之陳情意見辦理。
 二、復文大要：
-    ${aiResult.text}
+    ${aiResult.text}
 三、感謝您對公共事務的關心，如對本案仍有法規適用之疑義，歡迎逕洽本機關承辦人。
 </div>`;
 
-        if (type === '併陳') {
-            container.innerHTML = `<h3 style="color:#2b6cb0;">【簽稿併陳模式】</h3>` + signHtml + draftHtml;
-        } else if (type === '代簽') {
-            container.innerHTML = `<h3 style="color:#319795;">【以稿代簽模式】</h3>` + draftHtml;
-        }
+        // 根據使用者按鍵，組合不同的顯示畫面
+        if (type === '併陳') {
+            container.innerHTML = `<h3 style="color:#2b6cb0;">【簽稿併陳模式】</h3>` + signHtml + draftHtml;
+        } else if (type === '代簽') {
+            container.innerHTML = `<h3 style="color:#319795;">【以稿代簽模式】</h3>` + draftHtml;
+        }
 
-        document.getElementById('outputSection').style.display = 'block';
-        window.scrollTo({ top: document.getElementById('outputSection').offsetTop, behavior: 'smooth' });
-    }
+        // 秀出結果區塊並滾動到該處
+        document.getElementById('outputSection').style.display = 'block';
+        window.scrollTo({ top: document.getElementById('outputSection').offsetTop, behavior: 'smooth' });
+    }
 
-    // 清除金鑰紀錄的實體功能
-    function resetKey() {
-        localStorage.removeItem('gemini_api_key');
-        updateKeyStatusBoard();
-        alert('已清除瀏覽器記憶的金鑰紀錄！下次點擊生成時會重新跳出詢問視窗。');
-    }
+    // 💡 額外加碼功能：手動重設金鑰的快捷設定（可在主控台輸入 resetKey() 或未來做按鈕）
+    function resetKey() {
+        localStorage.removeItem('gemini_api_key');
+        alert('已清除記憶的金鑰！下次生成時會重新詢問。');
+    }
 </script>
 
 </body>
 </html>
+ 
