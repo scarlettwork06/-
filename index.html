@@ -175,6 +175,75 @@
         return `中華民國 ${rocYear} 年 ${month} 月 ${day} 日`;
     }
 
+    // 將 AI 的 Markdown 語法（例如 **粗體**）轉換成網頁排版
+    function formatMarkdownToHtml(text) {
+        if (!text) return "";
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+            .replace(/^-\s+(.*)$/gm, '• $1')
+            .replace(/^#+\s+(.*)$/gm, '<strong>$1</strong>');
+    }
+
+    // 真正串接 Google Gemini API 的處理邏輯
+    async function simulateGeminiAI(content, summary) {
+        let API_KEY = localStorage.getItem('gemini_api_key');
+        if (!API_KEY || API_KEY.trim() === "") {
+            API_KEY = prompt("【首次使用提示】\n請輸入您的 Google Gemini API 金鑰：\n(註：請輸入 AIzaSy 開頭的標準金鑰)");
+            if (API_KEY && API_KEY.trim() !== "") {
+                API_KEY = API_KEY.trim();
+                localStorage.setItem('gemini_api_key', API_KEY);
+            } else {
+                return { text: "❌ 使用者取消輸入金鑰，中止 AI 生成。", status: "⚠️ 未輸入 API 金鑰。" };
+            }
+        }
+        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+        const trimmedSummary = summary ? summary.trim() : "";
+        const trimmedContent = content ? content.trim() : "";
+        let promptText = `你是一位精通台灣政府機關公文擬稿的資深主辦。請參酌《行政院文書處理手冊》規範（文字須簡淺明確、語氣客觀委婉、依法行政）與《全國法規資料庫》引用格式，針對以下陳情案件，擬定一段專業的「復函大要」（不需寫主旨、受文者，直接條列說明段內容即可）。\n\n【民眾陳情內容】：${trimmedContent}\n`;
+        if (!trimmedSummary) {
+            promptText += `【回覆指導原則】：目前留空，請完全「從無到有」幫我生出一段符合法規研析、委婉拒絕或依法辦理的專業標準公文大要。`;
+        } else {
+            promptText += `【擬答關鍵字/核心重點】：${trimmedSummary}\n【回覆指導原則】：請務必包含上述關鍵字重點，將其「潤飾、擴充」成具備行政厚度、客觀委婉的公務標準公文文字。`;
+        }
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: promptText }] }] })
+            });
+            const data = await response.json();
+            if (data.error) {
+                if (data.error.code === 400) localStorage.removeItem('gemini_api_key');
+                throw new Error(`Google 回傳錯誤 [${data.error.code}]: ${data.error.message}`);
+            }
+            return {
+                text: data.candidates[0].content.parts[0].text,
+                status: trimmedSummary ? `✍️ <b>【Gemini AI 深度潤飾成功】</b>已依據您的重點與手冊規範完成擴充。` : `✨ <b>【Gemini AI 智能生成成功】</b>已由無到有為您擬定完整公文。`
+            };
+        } catch (error) {
+            return { text: `❌ 連線失敗，錯誤回報如下：\n${error.message}`, status: `⚠️ <b>【連線失敗】</b>系統未能成功串接 Gemini AI。` };
+        }
+    }
+    // 網頁開啟時自動填入今天日期
+    window.onload = function() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById('incomingDate').value = `${yyyy}-${mm}-${dd}`;
+    };
+
+    // 格式化日期為公文用的民國日期
+    function formatChineseDate(dateString) {
+        if (!dateString) return "____年__月__日";
+        const date = new Date(dateString);
+        const rocYear = date.getFullYear() - 1911;
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `中華民國 ${rocYear} 年 ${month} 月 ${day} 日`;
+    }
+
     // 真正串接 Google Gemini API 的處理邏輯
     async function simulateGeminiAI(content, summary) {
         let API_KEY = localStorage.getItem('gemini_api_key');
@@ -296,9 +365,7 @@
             if (!aiResult || aiResult.text.startsWith('❌')) return;
         }
 
-        // --- 以下接你原本的 DOM 渲染與 signHtml、draftHtml 輸出（不用變動） ---
-        const aiNotify = document.getElementById('aiNotify');
-        aiNotify.innerHTML = aiResult.status;
+        
         // ...後面維持原樣...
         
        
