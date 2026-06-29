@@ -160,6 +160,35 @@
 </div>
 
 <script>
+    // 核心：將設定與檢核模組化
+function getApiKey() {
+    return localStorage.getItem('gemini_api_key');
+}
+
+function updateApiKey() {
+    const newKey = prompt("請輸入您的 Google Gemini API 金鑰 (AIzaSy 開頭)：");
+    if (newKey) {
+        localStorage.setItem('gemini_api_key', newKey.trim());
+        alert("金鑰已儲存！");
+        location.reload(); // 重新整理以更新狀態
+    }
+}
+
+// 介面初始化時自動檢查
+window.onload = function() {
+    // ... 原有的日期邏輯 ...
+    
+    const key = getApiKey();
+    const statusDiv = document.createElement('div');
+    statusDiv.style.textAlign = "center";
+    statusDiv.style.marginBottom = "20px";
+    statusDiv.innerHTML = key ? 
+        "✅ 已設定 API 金鑰 <button onclick='updateApiKey()'>修改</button>" : 
+        "⚠️ 尚未設定 API 金鑰 <button onclick='updateApiKey()'>立即設定</button>";
+    
+    document.querySelector('.container h2').after(statusDiv);
+};
+
     // 網頁開啟時自動填入今天日期
     window.onload = function() {
         const today = new Date();
