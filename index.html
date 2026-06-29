@@ -118,25 +118,22 @@
 <div class="container">
     <h2>人民陳情案「簽、函稿」生成器</h2>
     
-    <!-- 1. 陳情人 -->
     <div class="form-group">
         <label for="petitioner">陳情人 <span style="font-weight:normal; color:#718096;">(選填，留空則顯示「某民眾」)</span></label>
         <input type="text" id="petitioner" placeholder="請輸入陳情人姓名或名稱">
     </div>
 
-    <!-- 2. 來文時間 -->
     <div class="form-group">
         <label for="incomingDate">來文時間</label>
         <input type="date" id="incomingDate">
     </div>
 
-    <!-- 3. 陳情內容與回覆大要 -->
     <div class="form-group">
         <label for="content" class="required">陳情內容</label>
         <textarea id="content" placeholder="請輸入陳情人訴求、痛點或主要陳情內容..."></textarea>
     </div>
 
-        <div class="form-group">
+    <div class="form-group">
         <label for="summary">回覆大要 <span style="font-weight:normal; color:#718096;">(選填，由 Gemini AI 自動優化/擬稿)</span></label>
         <textarea id="summary" placeholder="留空：由 AI 依陳情內容從無到有生成。&#10;簡要填寫：例如輸入「不符規定拒絕」，由 AI 自動潤飾擴充。"></textarea>
     </div>
@@ -147,13 +144,11 @@
     </div>
 
 
-    <!-- 4. 決行方式按鍵 -->
     <div class="btn-group">
         <button class="btn-sign-draft" onclick="generateDoc('併陳')">📝 簽稿併陳</button>
         <button class="btn-replace" onclick="generateDoc('代簽')">🚀 以稿代簽</button>
     </div>
 
-    <!-- 輸出區塊 -->
     <div id="outputSection" class="output-section">
         <div id="aiNotify" class="ai-badge"></div>
         <div id="documentContainer"></div>
@@ -161,7 +156,7 @@
 </div>
 
 <script>
-    // 網頁開啟時自動填入今天日期（2026年6月28日邏輯）
+    // 網頁開啟時自動填入今天日期
     window.onload = function() {
         const today = new Date();
         const yyyy = today.getFullYear();
@@ -182,9 +177,10 @@
         return `中華民國 ${rocYear} 年 ${month} 月 ${day} 日`;
     }
 
-            // 真正串接 Google Gemini API 的處理邏輯
+    // 真正串接 Google Gemini API 的處理邏輯
     async function simulateGeminiAI(content, summary) {
-        const API_KEY = "AQ.Ab8RN6Jv8y1TJ_MFGl4iRMYqhMuEqSozqXYK_n9DHygbsPFADA"; 
+        // 請記得在這裡換上以 AIzaSy 開頭的 API 金鑰
+        const API_KEY = "請貼上您的_AIzaSy_開頭金鑰"; 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
         const trimmedSummary = summary.trim();
@@ -219,21 +215,16 @@
             };
 
         } catch (error) {
-            catch (error) {
             console.error("API 請求失敗:", error);
-            // 改寫這裡：把真正的錯誤原因顯示在畫面上，方便除錯
             return {
-                text: `（因金鑰尚未生效或設定錯誤，切換回模擬文字）：\n一、關於您陳情反映「${trimmedContent.substring(0,20)}...」事項，本機關刻正依法辦理中。`,
-                status: `❌ <b>【API 錯誤回報】</b> 傳輸失敗，請檢查金鑰格式。錯誤訊息：${error.message}`
+                text: `（因金鑰尚未生效或設定錯誤，切換回模擬文字）：\n一、關於您陳情反映「${trimmedContent.substring(0,20)}...」事項，本機關刻正依法辦理中。\n二、本案（${trimmedSummary || '研議中'}），將秉持客觀委婉原則續辦。`,
+                status: `⚠️ <b>【提示】</b>目前正使用離線模擬。若要啟用真正的 Gemini AI，請在程式碼中填入您的 AIzaSy 金鑰。`
             };
         }
     }
-    
-
-    
 
     // 主生成程式
-        async function generateDoc(type) {
+    async function generateDoc(type) {
         const petitioner = document.getElementById('petitioner').value.trim() || "某民眾";
         const incomingDateStr = document.getElementById('incomingDate').value;
         const content = document.getElementById('content').value.trim();
