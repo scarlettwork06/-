@@ -219,10 +219,12 @@
             };
 
         } catch (error) {
+            catch (error) {
             console.error("API 請求失敗:", error);
+            // 改寫這裡：把真正的錯誤原因顯示在畫面上，方便除錯
             return {
-                text: `（因金鑰尚未生效或設定錯誤，切換回模擬文字）：\n一、關於您陳情反映「${trimmedContent.substring(0,20)}...」事項，本機關刻正依法辦理中。\n二、本案（${trimmedSummary || '研議中'}），將秉持客觀委婉原則續辦。`,
-                status: `⚠️ <b>【提示】</b>目前正使用離線模擬。若要啟用真正的 Gemini AI，請在程式碼中填入您的 AIzaSy 金鑰。`
+                text: `（因金鑰尚未生效或設定錯誤，切換回模擬文字）：\n一、關於您陳情反映「${trimmedContent.substring(0,20)}...」事項，本機關刻正依法辦理中。`,
+                status: `❌ <b>【API 錯誤回報】</b> 傳輸失敗，請檢查金鑰格式。錯誤訊息：${error.message}`
             };
         }
     }
