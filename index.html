@@ -156,24 +156,19 @@
 </div>
 
 <script>
-function formatMarkdownToHtml(text) {
-    if (!text) return "";
-    return text
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
-        .replace(/^[-\*]\s+(.*)$/gm, '• $1')
-        .replace(/^#+\s+(.*)$/gm, '<strong>$1</strong>')
-        .replace(/\n/g, '<br>'); // 修正換行，才不會全部擠在一起
-}
-  // 💡 在這裡補上漏掉的排版函數（直接複製下方這 9 行貼上）
+    // 🎯 保持乾淨的唯一正確版本
     function formatMarkdownToHtml(text) {
         if (!text) return "";
         return text
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
-            .replace(/^-\s+(.*)$/gm, '• $1')
-            .replace(/^#+\s+(.*)$/gm, '<strong>$1</strong>');
+            .replace(/^[-\*]\s+(.*)$/gm, '• $1')
+            .replace(/^#+\s+(.*)$/gm, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>'); // 確保條列公文正常換行
     }
+
+    // 網頁開啟時自動填入今天日期
+    window.onload = function() {
 
   
     // 網頁開啟時自動填入今天日期
