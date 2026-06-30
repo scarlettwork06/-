@@ -261,17 +261,9 @@
         if (lines.length <= 1) return;
 
         // 解析第一列標頭，自動尋找欄位
-        const header = lines[0].split(',');
-        let contentIdx = -1;
-        let replyIdx = -1;
-        header.forEach((label, idx) => {
-            if (label.includes("陳情")) contentIdx = idx;
-            if (label.includes("回覆") || label.includes("答覆") || label.includes("結果") || label.includes("辦理")) replyIdx = idx;
-        });
-
-        // 後備機制：萬一找不到對應中文字，盲猜第 2 欄和第 3 欄
-        if (contentIdx === -1) contentIdx = 1;
-        if (replyIdx === -1) replyIdx = 2;
+        // 取消模糊比對標頭，改由人工直接指定試算表欄位順序（最精準）
+let contentIdx = 1; // 填入「陳情內容」位於第幾欄。如果是 A 欄填 0, B 欄填 1, C 欄填 2...
+let replyIdx = 2;   // 填入「歷史回覆」位於第幾欄。如果是 B 欄填 1, C 欄填 2, D 欄填 3...
 
         let bestMatch = null;
         let highestScore = 0;
