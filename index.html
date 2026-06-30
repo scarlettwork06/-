@@ -187,3 +187,148 @@
 </script>
 </body>
 </html>
+
+<script>
+(function() {
+    // === 【請在此處修改您的設定】 ===
+    // 請將您發布到網路的 Google 試算表 CSV 網址填入下方雙引號中：
+    const GOOGLE_CSV_URL = "請將你發布到網路的CSV網址貼在這裡"; 
+    const MATCH_THRESHOLD = 0.25; // 相似度門檻 (0~1)，數字愈低愈寬鬆，數字愈高愈嚴格
+    // ====================================
+
+    // 在原有的「回覆大要」下方，動態插入提示區塊，完全不干擾原 HTML 結構
+    const summaryGroup = document.getElementById('summary').parentNode;
+    const searchAlertBox = document.createElement('div');
+    searchAlertBox.id = 'historyAlertBox';
+    searchAlertBox.style.cssText = "margin-top: 10px; padding: 12px; background: #fffaf0; border: 1px dashed #dd6b20; border-radius: 4px; font-size: 14px; color: #dd6b20; display: none;";
+    summaryGroup.appendChild(searchAlertBox);
+
+    // 監聽陳情內容輸入框，當滑鼠點擊外面（離開焦點）時自動觸發比對
+    const contentInput = document.getElementById('content');
+    contentInput.addEventListener('blur', searchHistoryCase);
+
+    // 字詞重疊率相似度算法，適合中文比對
+    function calculateSimilarity(str1, str2) {
+        if (!str1 || !str2) return 0;
+        const set1 = new Set(str1.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ''));
+        const set2 = new Set(str2.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ''));
+        if (set1.size === 0 || set2.size === 0) return 0;
+        
+        let intersection = 0;
+        for (let char of set1) {
+            if (set2.has(char)) intersection++;
+        }
+        return intersection / set1.size;
+    }
+
+    // 解析 CSV 文字的工具（防呆處理換行與包含引號的儲存格）
+    function parseCSV(text) {
+        const lines = [];
+        let row = [""];
+        let inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+            let c = text[i];
+            let next = text[i+1];
+            if (c === '"') {
+                if (inQuotes && next === '"') { row[row.length - 1] += '"'; i++; }
+                else { inQuotes = !inQuotes; }
+            } else if (c === ',' && !inQuotes) {
+                row.push('');
+            } else if ((c === '\r' || c === '\n') && !inQuotes) {
+                if (c === '\r' && next === '\n') { i++; }
+                lines.push(row);
+                row = [''];
+            } else {
+                row[row.length - 1] += c;
+            }
+        }
+        if (row.length > 1 || row[0] !== '') lines.push(row);
+        return lines;
+    }
+
+    // 主要比對邏輯
+    async function searchHistoryCase() {
+        const currentContent = contentInput.value.trim();
+        const alertBox = document.getElementById('historyAlertBox');
+        if (currentContent.length < 5) return; // 字數太少則不啟動比對
+
+        if (GOOGLE_CSV_URL === "請將你發布到網路的CSV網址貼在這裡") {
+            console.warn("尚未設定 Google 表單 CSV 網址，無法啟動歷史案件比對。");
+            return;
+        }
+
+        try {
+            alertBox.style.display = 'block';
+            alertBox.innerHTML = "🔍 正在即時比對 Google 表單協作資料庫...";
+            
+            const response = await fetch(GOOGLE_CSV_URL);
+            const csvText = await response.text();
+            const rows = parseCSV(csvText);
+
+            // 自動偵測欄位標頭
+            const header = rows[0];
+            let contentIdx = header.findIndex(h => h.includes('陳情'));
+            let replyIdx = header.findIndex(h => h.includes('回覆') || h.includes('答覆') || h.includes('辦理結果'));
+
+            // 預設防呆：若找不到標頭關鍵字，預設為第 2 欄與第 3 欄
+            if (contentIdx === -1) contentIdx = 2;
+            if (replyIdx === -1) replyIdx = 3;
+
+            let bestMatch = null;
+            let highestScore = 0;
+
+            // 逐列比對協作資料
+            for (let i = 1; i < rows.length; i++) {
+                const historyContent = rows[i][contentIdx];
+                const historyReply = rows[i][replyIdx];
+                if (!historyContent || !historyReply) continue;
+
+                const score = calculateSimilarity(currentContent, historyContent);
+                if (score > highestScore) {
+                    highestScore = score;
+                    bestMatch = { content: historyContent, reply: historyReply };
+                }
+            }
+
+            // 達到門檻則跳出提示
+            if (highestScore >= MATCH_THRESHOLD && bestMatch) {
+                alertBox.innerHTML = `
+                    <strong>💡 偵測到意思相近的歷史案件（相似度: ${Math.round(highestScore * 100)}%）</strong><br>
+                    <div style="margin: 5px 0; color: #555; background: #fff; padding: 5px; border-radius: 3px; max-height: 80px; overflow-y: auto;">
+                        <strong>歷陳：</strong>${bestMatch.content}<br>
+                        <strong>歷復：</strong>${bestMatch.reply}
+                    </div>
+                    <button type="button" id='btnApplyHistory' style="margin-top:5px; padding:4px 8px; font-size:12px; background:#dd6b20; color:#fff; border:none; border-radius:3px; cursor:pointer;">
+                        📥 引用此歷史回覆並請 Gemini 潤飾
+                    </button>
+                `;
+                
+                // 點擊引用按鈕
+                document.getElementById('btnApplyHistory').onclick = function() {
+                    document.getElementById('summary').value = `【請參考並潤飾以下歷史回覆內容】：${bestMatch.reply}`;
+                    alertBox.innerHTML = "✅ 已成功引用協作內容！請點擊下方的「簽稿併陳」或「以稿代簽」開始潤飾。";
+                    alertBox.style.background = "#f0fff4";
+                    alertBox.style.borderColor = "#38a169";
+                    alertBox.style.color = "#276749";
+                };
+            } else {
+                alertBox.style.display = 'none'; // 沒找到相似案則隱藏
+            }
+
+        } catch (e) {
+            console.error("歷史資料庫讀取失敗:", e);
+            alertBox.innerHTML = "⚠️ 無法連線至 Google 協作資料庫，將採取常規 AI 生成。";
+        }
+    }
+
+    // 攔截並強化 Prompt：當發現有引用標記時，自動要求 Gemini 對該歷史內文進行潤飾防死抄
+    const originalSimulateGeminiAI = window.simulateGeminiAI;
+    window.simulateGeminiAI = async function(type, petitioner, dateStr, content, summary) {
+        let enhancedSummary = summary;
+        if (summary && summary.includes('【請參考並潤飾以下歷史回覆內容】')) {
+            enhancedSummary = summary + `\n⚠️ 提示：此歷史回覆為同仁協作累積的精準答覆。請提煉該歷史回覆的核心法規或處置重點，並根據這次新案件的脈絡重新潤飾語氣，包裝成正式公文格式，請勿盲目全抄。`;
+        }
+        return await originalSimulateGeminiAI(type, petitioner, dateStr, content, enhancedSummary);
+    };
+})();
+</script>
