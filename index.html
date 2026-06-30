@@ -88,12 +88,37 @@
         return `中華民國 ${date.getFullYear() - 1911} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
     }
 
-    async function simulateGeminiAI(content, summary) {
+    // 【修改處 1】加入 type 參數，優化 Prompt 讓 AI 能精準產出簽與稿
+    async function simulateGeminiAI(type, petitioner, dateStr, content, summary) {
         const API_KEY = localStorage.getItem('gemini_api_key');
         if (!API_KEY) throw new Error("請先點擊上方按鈕設定 API 金鑰。");
 
         const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
-        const promptText = `針對以下陳情內容，請依據《行政院文書處理手冊》規範擬復函大要：${content} ${summary ? '重點：'+summary : ''}`;
+        
+        let promptText = `你現在是台灣的公務員，請依據《行政院文書處理手冊》規範，針對以下陳情內容擬具公文。\n`;
+        promptText += `陳情人：${petitioner || '民眾'}\n`;
+        promptText += `來文日期：${dateStr}\n`;
+        promptText += `陳情內容：${content}\n`;
+        if (summary) promptText += `擬辦擬復重點：${summary}\n\n`;
+
+        if (type === '併陳') {
+            promptText += `請生成「簽」與「函（稿）」兩部分，並用【簽】與【函稿】標籤分開。
+格式要求：
+【簽】
+主旨：
+說明：一、... 二、...
+擬辦：一、... 二、...
+
+【函稿】
+主旨：
+說明：一、... 二、...`;
+        } else {
+            promptText += `請生成「以稿代簽」的「函（稿）」。
+格式要求：
+【函稿】
+主旨：（請在主旨最後面或適當處加上「，請核示。」或依以稿代簽習慣擬具）
+說明：一、... 二、...`;
+        }
 
         const response = await fetch(url, {
             method: "POST",
@@ -106,18 +131,54 @@
         return data.candidates[0].content.parts[0].text;
     }
 
+    // 【修改處 2】根據 type 渲染不同的 HTML 區塊
     async function generateDoc(type) {
         const content = document.getElementById('content').value;
+        const petitioner = document.getElementById('petitioner').value;
+        const summary = document.getElementById('summary').value;
         if (!content) return alert("請填寫內容");
 
         try {
-            const aiText = await simulateGeminiAI(content, document.getElementById('summary').value);
             const dateStr = formatChineseDate(document.getElementById('incomingDate').value);
             
-            document.getElementById('aiNotify').innerHTML = "✅ 生成成功";
+            // 呼叫 AI（傳入 type 與相關參數）
+            const aiText = await simulateGeminiAI(type, petitioner, dateStr, content, summary);
+            
+            document.getElementById('aiNotify').innerHTML = `✅ ${type} 模擬生成成功`;
             document.getElementById('outputSection').style.display = 'block';
             
-            let html = `<div class="document-box"><b>主旨：</b>關於陳情事項復如說明...<br><b>說明：</b>${aiText}</div>`;
+            let html = "";
+            
+            if (type === '併陳') {
+                // 如果是簽稿併陳，嘗試拆分 AI 的回傳結果
+                let signText = "（未生成簽）";
+                let draftText = "（未生成函稿）";
+                
+                if (aiText.includes('【簽】') && aiText.includes('【函稿】')) {
+                    const parts = aiText.split('【函稿】');
+                    signText = parts[0].replace('【簽】', '').trim();
+                    draftText = parts[1].trim();
+                } else {
+                    // 若 AI 沒有乖乖用標籤，就直接顯示整段
+                    signText = aiText;
+                }
+                
+                html = `
+                    <div class="doc-title">【 簽 】</div>
+                    <div class="document-box">${signText}</div>
+                    <br>
+                    <div class="doc-title">【 函 稿 】</div>
+                    <div class="document-box">${draftText}</div>
+                `;
+            } else {
+                // 如果是以稿代簽，只顯示函稿
+                let draftText = aiText.replace('【函稿】', '').trim();
+                html = `
+                    <div class="doc-title">【 函 稿 （以稿代簽）】</div>
+                    <div class="document-box">${draftText}</div>
+                `;
+            }
+            
             document.getElementById('documentContainer').innerHTML = html;
         } catch (e) {
             alert("生成失敗: " + e.message);
