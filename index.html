@@ -189,159 +189,147 @@
 </html>
 
 <!-- ========================================== -->
-<!-- 以下為修正後的獨立擴充功能：歷史案件比對與引用功能 -->
+<!-- 以下修正直接知道GOOGLE表單的連結就可以 -->
 <!-- ========================================== -->
 <script>
 (function() {
-    // === 【請確認此處已換成「發布到網路」的 CSV 網址】 ===
-    const GOOGLE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQW9X7dO9-5O0_xK7Sg-KxU_v3S-7K9h7Mv0wZ-X8oQZ_L7Y09Y7o8_XoW_M7L-o8p9o8p_XoW/pub?output=csv"; 
-    // ^^^ 註：請將您在步驟一「發布到網路」視窗中複製到的那串帶有 /pub?output=csv 的網址貼在上面雙引號內！
-    // 如果您暫時找不到發布網址，以下這條是您原本試算表的公開匯出備用路徑（但部分瀏覽器可能會因 Google 安全限制擋下）：
-    const BACKUP_URL = "https://docs.google.com/spreadsheets/d/1xoVm-6_paq-4juM7hXYbbbZ0hi0TsbsdCylMPDO7y4o/export?format=csv";
+    // 1. 使用您提供的編輯網址，直接轉換為最穩定的公開 JSON 輸出路徑
+    const SPREADSHEET_ID = "1xoVm-6_paq-4juM7hXYbbbZ0hi0TsbsdCylMPDO7y4o";
+    const GOOGLE_JSON_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json`;
 
-    const MATCH_THRESHOLD = 0.25; // 相似度門檻
-    // ==================================================
+    const MATCH_THRESHOLD = 0.20; // 相似度門檻（0.2 代表只要有兩成意思相近就會觸發，可依需求調整）
 
-    // 在原有的「回覆大要」下方，動態插入提示區塊，完全不干擾原 HTML 結構
+    // 在「回覆大要」下方動態插入提示區塊
     const summaryGroup = document.getElementById('summary').parentNode;
     const searchAlertBox = document.createElement('div');
     searchAlertBox.id = 'historyAlertBox';
     searchAlertBox.style.cssText = "margin-top: 10px; padding: 12px; background: #fffaf0; border: 1px dashed #dd6b20; border-radius: 4px; font-size: 14px; color: #dd6b20; display: none;";
     summaryGroup.appendChild(searchAlertBox);
 
-    // 監聽陳情內容輸入框，當滑鼠點擊外面（離開焦點）時自動觸發比對
     const contentInput = document.getElementById('content');
     contentInput.addEventListener('blur', searchHistoryCase);
 
-    // 字詞重疊率相似度算法，適合中文比對
+    // 改良版：中文模糊語意與關鍵字重疊比對演算法
     function calculateSimilarity(str1, str2) {
         if (!str1 || !str2) return 0;
-        const set1 = new Set(str1.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ''));
-        const set2 = new Set(str2.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ''));
+        // 移除所有標點符號與空白，只保留中英文字母數字
+        const clean1 = str1.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+        const clean2 = str2.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+        
+        const set1 = new Set(clean1);
+        const set2 = new Set(clean2);
         if (set1.size === 0 || set2.size === 0) return 0;
         
         let intersection = 0;
         for (let char of set1) {
             if (set2.has(char)) intersection++;
         }
-        return intersection / set1.size;
-    }
-
-    // 解析 CSV 文字的工具
-    function parseCSV(text) {
-        const lines = [];
-        let row = [""];
-        let inQuotes = false;
-        for (let i = 0; i < text.length; i++) {
-            let c = text[i];
-            let next = text[i+1];
-            if (c === '"') {
-                if (inQuotes && next === '"') { row[row.length - 1] += '"'; i++; }
-                else { inQuotes = !inQuotes; }
-            } else if (c === ',' && !inQuotes) {
-                row.push('');
-            } else if ((c === '\r' || c === '\n') && !inQuotes) {
-                if (c === '\r' && next === '\n') { i++; }
-                lines.push(row);
-                row = [''];
-            } else {
-                row[row.length - 1] += c;
-            }
-        }
-        if (row.length > 1 || row[0] !== '') lines.push(row);
-        return lines;
+        
+        // 長度懲罰修正：避免短句子跟長句子比對時分數虛高
+        const score = intersection / Math.max(set1.size, 5); 
+        return score;
     }
 
     // 主要比對邏輯
     async function searchHistoryCase() {
         const currentContent = contentInput.value.trim();
         const alertBox = document.getElementById('historyAlertBox');
-        if (currentContent.length < 5) return; // 字數太少則不啟動比對
+        if (currentContent.length < 5) return; // 字數太少則不啟動
 
         try {
             alertBox.style.display = 'block';
             alertBox.style.background = "#fffaf0";
             alertBox.style.borderColor = "#dd6b20";
             alertBox.style.color = "#dd6b20";
-            alertBox.innerHTML = "🔍 正在即時比對 Google 表單協作資料庫...";
-            
-            // 優先使用發布網址，若未修改則嘗試使用備用網址
-            const targetUrl = GOOGLE_CSV_URL.includes("請將你發布到網路") ? BACKUP_URL : GOOGLE_CSV_URL;
-            
-            const response = await fetch(targetUrl);
-            if (!response.ok) throw new Error("Google 回傳錯誤，請確認試算表是否有設定「發布到網路」。");
-            
-            const csvText = await response.text();
-            const rows = parseCSV(csvText);
+            alertBox.innerHTML = "🔍 正在透過安全協議連接 Google 表單資料庫...";
 
-            if (rows.length < 2) {
-                alertBox.style.display = 'none';
+            // 抓取 Google 試算表提供的 JSON 資料
+            const response = await fetch(GOOGLE_JSON_URL);
+            const text = await response.text();
+            
+            // 處理 Google 特有的 JSON 格式安全前綴 (google.visualization.Query.setResponse(...))
+            const jsonString = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
+            const data = JSON.parse(jsonString);
+            
+            const rows = data.table.rows;
+            const cols = data.table.cols;
+
+            if (!rows || rows.length === 0) {
+                alertBox.innerHTML = "⚠️ 連線成功，但 Google 表單內似乎還沒有任何資料。";
                 return;
             }
 
-            // 自動偵測欄位標頭
-            const header = rows[0];
-            let contentIdx = header.findIndex(h => h && h.includes('陳情'));
-            let replyIdx = header.findIndex(h => h && (h.includes('回覆') || h.includes('答覆') || h.includes('辦理結果') || h.includes('內容')));
+            // 【防呆焦點】智慧型欄位定位：直接通掃第一列，看哪一欄有寫「陳情」，哪一欄有寫「回覆/答覆/結果」
+            let contentIdx = -1;
+            let replyIdx = -1;
 
-            // 預設防呆：若找不到標頭關鍵字，預設為第 2 欄與第 3 欄
-            if (contentIdx === -1) contentIdx = 1;
-            if (replyIdx === -1) replyIdx = 2;
+            cols.forEach((col, idx) => {
+                const label = col.label ? col.label : "";
+                if (label.includes("陳情")) contentIdx = idx;
+                if (label.includes("回覆") || label.includes("答覆") || label.includes("結果") || label.includes("辦理")) replyIdx = idx;
+            });
+
+            // 萬一協作表單沒設定欄位名稱，自動啟用後備機制（盲猜第 2 欄和第 3 欄）
+            if (contentIdx === -1) contentIdx = 1; 
+            if (replyIdx === -1) replyIdx = 2; 
 
             let bestMatch = null;
             let highestScore = 0;
 
-            // 逐列比對協作資料
-            for (let i = 1; i < rows.length; i++) {
-                if (!rows[i] || rows[i].length <= Math.max(contentIdx, replyIdx)) continue;
-                const historyContent = rows[i][contentIdx];
-                const historyReply = rows[i][replyIdx];
-                if (!historyContent || !historyReply) continue;
+            // 逐列分析歷史案件
+            rows.forEach(row => {
+                if (!row.c) return;
+                // 安全讀取儲存格文字
+                const historyContent = row.c[contentIdx] && row.c[contentIdx].v ? String(row.c[contentIdx].v) : "";
+                const historyReply = row.c[replyIdx] && row.c[replyIdx].v ? String(row.c[replyIdx].v) : "";
+                
+                if (!historyContent || !historyReply) return;
 
                 const score = calculateSimilarity(currentContent, historyContent);
                 if (score > highestScore) {
                     highestScore = score;
                     bestMatch = { content: historyContent, reply: historyReply };
                 }
-            }
+            });
 
-            // 達到門檻則跳出提示
+            // 達到相似度門檻，顯示綠色引用提示框
             if (highestScore >= MATCH_THRESHOLD && bestMatch) {
                 alertBox.innerHTML = `
-                    <strong>💡 偵測到意思相近的歷史案件（相似度: ${Math.round(highestScore * 100)}%）</strong><br>
-                    <div style="margin: 5px 0; color: #555; background: #fff; padding: 5px; border-radius: 3px; max-height: 80px; overflow-y: auto;">
-                        <strong>歷陳：</strong>${bestMatch.content}<br>
-                        <strong>歷復：</strong>${bestMatch.reply}
+                    <strong>💡 找到相似歷史案例（關聯度評估: ${Math.round(highestScore * 100)}%）</strong><br>
+                    <div style="margin: 5px 0; color: #444; background: #fff; padding: 8px; border-radius: 4px; max-height: 100px; overflow-y: auto; border: 1px solid #e2e8f0; line-height: 1.5;">
+                        <strong>【歷史陳情】</strong>${bestMatch.content}<br>
+                        <strong style="color: #2b6cb0;">【曾經回覆】</strong>${bestMatch.reply}
                     </div>
-                    <button type="button" id='btnApplyHistory' style="margin-top:5px; padding:4px 8px; font-size:12px; background:#dd6b20; color:#fff; border:none; border-radius:3px; cursor:pointer;">
-                        📥 引用此歷史回覆並請 Gemini 潤飾
+                    <button type="button" id='btnApplyHistory' style="margin-top:8px; padding:6px 12px; font-size:13px; background:#dd6b20; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">
+                        📥 引用此歷史回覆，交由 Gemini 重新潤飾
                     </button>
                 `;
                 
-                // 點擊引用按鈕
+                // 點擊按鈕：將歷史回復塞入欄位，並啟動強制潤飾 Prompt
                 document.getElementById('btnApplyHistory').onclick = function() {
                     document.getElementById('summary').value = `【請參考並潤飾以下歷史回覆內容】：${bestMatch.reply}`;
-                    alertBox.innerHTML = "✅ 已成功引用協作內容！請點擊下方的「簽稿併陳」或「以稿代簽」開始潤飾。";
+                    alertBox.innerHTML = "✅ 已成功抓取歷史紀錄！請點擊下方的「簽稿併陳」或「以稿代簽」按鈕，Gemini 將會以此舊稿為核心基礎，結合新案情自動潤飾修辭。";
                     alertBox.style.background = "#f0fff4";
                     alertBox.style.borderColor = "#38a169";
                     alertBox.style.color = "#276749";
                 };
             } else {
-                alertBox.style.display = 'none'; // 沒找到相似案則隱藏
+                // 如果找不到足夠相似的案子，就靜默隱藏提示
+                alertBox.style.display = 'none';
             }
 
         } catch (e) {
-            console.error("歷史資料庫讀取失敗:", e);
-            alertBox.innerHTML = "⚠️ 無法連線至 Google 協作資料庫（原因: " + e.message + "），請確認試算表已完成「發布到網路」設定。網頁目前將採取常規 AI 生成。";
+            console.error("試算表連線失敗:", e);
+            alertBox.innerHTML = "⚠️ 無法讀取協作資料庫。請確認該 Google 試算表的共用權限是否已設定為「知道連結的任何人均可檢視」。目前系統將自動採取常規 AI 生成。";
         }
     }
 
-    // 攔截並強化 Prompt
+    // 攔截並重寫前段的 AI 邏輯：當發現引用的歷史紀錄時，強制命令 Gemini 對其進行重新包裝與潤飾，絕不生硬死抄
     const originalSimulateGeminiAI = window.simulateGeminiAI;
     window.simulateGeminiAI = async function(type, petitioner, dateStr, content, summary) {
         let enhancedSummary = summary;
         if (summary && summary.includes('【請參考並潤飾以下歷史回覆內容】')) {
-            enhancedSummary = summary + `\n⚠️ 提示：此歷史回覆為同仁協作累積的精準答覆。請提煉該歷史回覆的核心法規或處置重點，並根據這次新案件的脈絡重新潤飾語氣，包裝成正式公文格式，請勿盲目全抄。`;
+            enhancedSummary = summary + `\n\n[核心交辦指令]：上面提供的是歷史相似案件的答覆精髓。請 AI 提取該歷史回覆中的「重要法規條文、處分標準或權責科室」，結合這一次全新的陳情脈絡，重新梳理公文邏輯、潤飾修辭。必須包裝成正式的公文主旨與說明段落，文字要通順流暢，絕對不要直接複製貼上舊句子。`;
         }
         return await originalSimulateGeminiAI(type, petitioner, dateStr, content, enhancedSummary);
     };
