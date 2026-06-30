@@ -195,7 +195,7 @@
 (function() {
     // 1. Google 試算表公開 JSON 輸出路徑
     const SPREADSHEET_ID = "1xoVm-6_paq-4juM7hXYbbbZ0hi0TsbsdCylMPDO7y4o";
-    const GOOGLE_JSON_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json`;
+    const GOOGLE_JSON_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/pub?output=csv`;
 
     // 降低門檻至 0.15：只要有提到部分相同關鍵字（如：檢察官、評鑑）就會被智慧撈出
     const MATCH_THRESHOLD = 0.15; 
@@ -243,96 +243,87 @@
 
     // 主要比對邏輯
     async function searchHistoryCase() {
-        const currentContent = contentInput.value.trim();
-        const alertBox = document.getElementById('historyAlertBox');
-        if (currentContent.length < 3) return; // 輸入 3 個字以上就啟動比對
+    const currentContent = contentInput.value.trim();
+    const alertBox = document.getElementById('historyAlertBox');
+    if (currentContent.length < 3) return; // 輸入3個字以上就啟動比對
 
-        try {
-            alertBox.style.display = 'block';
-            alertBox.innerHTML = "🔍 正在即時比對 Google 表單歷史紀錄...";
+    try {
+        alertBox.style.display = 'block';
+        alertBox.innerHTML = "🔍 正在即時比對 Google 表單歷史紀錄...";
 
-            const response = await fetch(GOOGLE_JSON_URL);
-            const text = await response.text();
-            
-            // 解析 Google JSON
-            const jsonString = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
-            const data = JSON.parse(jsonString);
-            
-            const rows = data.table.rows;
-            const cols = data.table.cols;
+        // 讀取 CSV 文字流
+        const response = await fetch(GOOGLE_CSV_URL);
+        if (!response.ok) throw new Error("Google 回絕連線");
+        const text = await response.text();
+        
+        // 將 CSV 文字按行切開
+        const lines = text.split(/\r\n|\n/);
+        if (lines.length <= 1) return;
 
-            if (!rows || rows.length === 0) {
-                alertBox.innerHTML = "⚠️ 連線成功，但表單內尚無資料。";
-                return;
+        // 解析第一列標頭，自動尋找欄位
+        const header = lines[0].split(',');
+        let contentIdx = -1;
+        let replyIdx = -1;
+        header.forEach((label, idx) => {
+            if (label.includes("陳情")) contentIdx = idx;
+            if (label.includes("回覆") || label.includes("答覆") || label.includes("結果") || label.includes("辦理")) replyIdx = idx;
+        });
+
+        // 後備機制：萬一找不到對應中文字，盲猜第 2 欄和第 3 欄
+        if (contentIdx === -1) contentIdx = 1;
+        if (replyIdx === -1) replyIdx = 2;
+
+        let bestMatch = null;
+        let highestScore = 0;
+
+        // 從第二列開始比對歷史資料
+        for (let i = 1; i < lines.length; i++) {
+            const row = lines[i].split(',');
+            if (row.length <= Math.max(contentIdx, replyIdx)) continue;
+
+            const historyContent = row[contentIdx].replace(/^"|"$/g, '').trim();
+            const historyReply = row[replyIdx].replace(/^"|"$/g, '').trim();
+
+            if (!historyContent || !historyReply) continue;
+
+            const score = calculateSimilarity(currentContent, historyContent);
+            if (score > highestScore) {
+                highestScore = score;
+                bestMatch = { content: historyContent, reply: historyReply };
             }
-
-            // 智慧定位欄位
-            let contentIdx = -1;
-            let replyIdx = -1;
-            cols.forEach((col, idx) => {
-                const label = col.label ? col.label : "";
-                if (label.includes("陳情")) contentIdx = idx;
-                if (label.includes("回覆") || label.includes("答覆") || label.includes("結果") || label.includes("辦理")) replyIdx = idx;
-            });
-
-            if (contentIdx === -1) contentIdx = 1; 
-            if (replyIdx === -1) replyIdx = 2; 
-
-            let matchedCases = [];
-
-            // 掃描整張表，找出所有符合模糊門檻的案例
-            rows.forEach(row => {
-                if (!row.c) return;
-                const historyContent = row.c[contentIdx] && row.c[contentIdx].v ? String(row.c[contentIdx].v) : "";
-                const historyReply = row.c[replyIdx] && row.c[replyIdx].v ? String(row.c[replyIdx].v) : "";
-                
-                if (!historyContent || !historyReply) return;
-
-                const score = calculateSimilarity(currentContent, historyContent);
-                if (score >= MATCH_THRESHOLD) {
-                    matchedCases.push({ content: historyContent, reply: historyReply, score: score });
-                }
-            });
-
-            // 依照相似度從高到低排序
-            matchedCases.sort((a, b) => b.score - a.score);
-
-            if (matchedCases.length > 0) {
-                // 取最相關的前兩筆作為 AI 潤飾的參考庫
-                const topMatch = matchedCases[0];
-                const allReplies = matchedCases.map(c => c.reply).join("\n[另一歷史案例]：");
-
-                alertBox.style.background = "#fffaf0";
-                alertBox.style.borderColor = "#dd6b20";
-                alertBox.style.color = "#dd6b20";
-                alertBox.innerHTML = `
-                    <strong>💡 偵測到與歷史表單相似的案例！</strong><br>
-                    <div style="margin: 5px 0; color: #444; background: #fff; padding: 8px; border-radius: 4px; max-height: 120px; overflow-y: auto; border: 1px solid #e2e8f0; font-size: 13px; line-height: 1.5;">
-                        <strong>【歷史陳情相似案例】</strong>${topMatch.content}<br>
-                        <strong style="color: #2b6cb0;">【過去辦理結果】</strong>${topMatch.reply}
-                    </div>
-                    <button type="button" id='btnApplyHistory' style="margin-top:8px; padding:6px 12px; font-size:13px; background:#dd6b20; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
-                        📥 引用此歷陳回覆，並交由 Gemini 智慧潤飾（避免死抄）
-                    </button>
-                `;
-                
-                document.getElementById('btnApplyHistory').onclick = function() {
-                    // 將資料灌入回覆大要，供前段 AI 核心抓取
-                    document.getElementById('summary').value = `【請參考並智慧潤飾以下歷史回覆內容】：\n${allReplies}`;
-                    alertBox.innerHTML = "✅ 已成功鎖定協作資料庫！現在請點擊下方的「📝 簽稿併陳」或「🚀 以稿代簽」，Gemini 將會自動融會貫通這段歷史內容，重新修辭並生成全新的公文。";
-                    alertBox.style.background = "#f0fff4";
-                    alertBox.style.borderColor = "#38a169";
-                    alertBox.style.color = "#276749";
-                };
-            } else {
-                alertBox.style.display = 'none';
-            }
-
-        } catch (e) {
-            console.error("試算表連線失敗:", e);
-            alertBox.innerHTML = "⚠️ 無法讀取協作資料庫，請確認 Google 試算表右上角「共用」已開啟為「知道連結的任何人均可檢視」。系統目前採取常規 AI 直接生成。";
         }
+
+        // 達到相似門檻，亮起橘色提示框
+        if (highestScore >= MATCH_THRESHOLD && bestMatch) {
+            alertBox.style.background = "#fffaf0";
+            alertBox.style.borderColor = "#dd6b20";
+            alertBox.style.color = "#dd6b20";
+            alertBox.innerHTML = `
+                <strong>💡 找到相似歷史案例（關聯度: ${Math.round(highestScore * 100)}%）</strong><br>
+                <div style="margin: 5px 0; color: #444; background: #fff; padding: 8px; border-radius: 4px; max-height: 100px; overflow-y: auto; border: 1px solid #e2e8f0; line-height: 1.5;">
+                    <strong>【歷史陳情】</strong>${bestMatch.content}<br>
+                    <strong style="color: #2b6cb0;">【曾經回覆】</strong>${bestMatch.reply}
+                </div>
+                <button type="button" id='btnApplyHistory' style="margin-top:8px; padding:6px 12px; font-size:13px; background:#dd6b20; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
+                    📥 引用此歷史回覆，交由 Gemini 重新潤飾
+                </button>
+            `;
+
+            document.getElementById('btnApplyHistory').onclick = function() {
+                document.getElementById('summary').value = `【請參考並智慧潤飾以下歷史回覆內容】：${bestMatch.reply}`;
+                alertBox.innerHTML = "✅ 已成功抓取歷史紀錄！請點擊下方的「簽稿併陳」或「以稿代簽」，Gemini 將自動進行公公文潤飾。";
+                alertBox.style.background = "#f0fff4";
+                alertBox.style.borderColor = "#38a169";
+                alertBox.style.color = "#276749";
+            };
+        } else {
+            alertBox.style.display = 'none';
+        }
+    } catch (e) {
+        console.error(e);
+        alertBox.innerHTML = "⚠️ 無法讀取協作資料庫。請確認 Google 試算表已開啟「知道連結的任何人均可檢視」。";
     }
+}
 
     // 2. 攔截並重寫前段的 AI 邏輯：當發現引用的歷史紀錄時，強制命令 Gemini 對其進行重新包裝與潤飾，絕不生硬死抄
     const originalSimulateGeminiAI = window.simulateGeminiAI;
