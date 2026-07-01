@@ -218,22 +218,38 @@ ${summary}
 </body>
 </html>
 <script>
-(function() {
+// 確保整個網頁的 HTML 元素都載入完成後，才執行外掛功能
+window.addEventListener('DOMContentLoaded', function() {
+    // 儲存搜尋結果的全域狀態
+    let searchResults = [];
+    let currentMatchIndex = -1;
+    let replyColumnIndex = -1;
+
     // 1. 在「陳情內容」下方動態插入「查詢表單資料庫」的按鈕與狀態提示
     const contentArea = document.getElementById('content');
-    if (contentArea) {
-        const searchBtnGroup = document.createElement('div');
-        searchBtnGroup.style.cssText = "margin-top: 8px; display: flex; gap: 10px; align-items: center;";
-        searchBtnGroup.innerHTML = `
-            <button type="button" id="btnSearchSheet" style="flex: none; width: auto; padding: 6px 15px; font-size: 13px; background-color: #4a5568; border-radius: 4px;">
+    if (!contentArea) {
+        console.error("找不到 id='content' 的欄位，外掛無法載入。");
+        return;
+    }
+
+    const searchBtnGroup = document.createElement('div');
+    searchBtnGroup.style.cssText = "margin-top: 8px; display: flex; flex-direction: column; gap: 8px;";
+    searchBtnGroup.innerHTML = `
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button type="button" id="btnSearchSheet" style="flex: none; width: auto; padding: 6px 15px; font-size: 13px; background-color: #4a5568; border-radius: 4px; color: white; cursor: pointer; border: none;">
                 🔍 查詢雲端表單前案
             </button>
             <span id="sheetSearchStatus" style="font-size: 13px; color: #718096;">輸入陳情內容後，可點擊按鈕比對雲端歷史回覆</span>
-        `;
-        contentArea.parentNode.insertBefore(searchBtnGroup, contentArea.nextSibling);
-    }
+        </div>
+        <div id="matchNavPanel" style="display: none; align-items: center; gap: 10px; background: #edf2f7; padding: 8px 12px; border-radius: 4px; font-size: 13px;">
+            <span id="matchCountInfo" style="font-weight: bold; color: #2d3748;"></span>
+            <button type="button" id="btnPrevMatch" style="width:auto; padding: 3px 10px; font-size: 12px; background-color: #cbd5e0; color: #333; border-radius: 3px; border: none; cursor: pointer;">⬅️ 上一件</button>
+            <button type="button" id="btnNextMatch" style="width:auto; padding: 3px 10px; font-size: 12px; background-color: #cbd5e0; color: #333; border-radius: 3px; border: none; cursor: pointer;">下一件 ➡️</button>
+        </div>
+    `;
+    contentArea.parentNode.insertBefore(searchBtnGroup, contentArea.nextSibling);
 
-    // 2. CSV 文字解析核心函數（將 Google 傳回的串流轉為結構化陣列）
+    // 2. CSV 文字解析核心函數
     function parseCSV(text) {
         let lines = [];
         let row = [""];
@@ -258,21 +274,46 @@ ${summary}
         return lines;
     }
 
+    // 更新目前選中案件的內容到網頁上
+    function displayCurrentMatch() {
+        const summaryTextarea = document.getElementById('summary');
+        const countInfo = document.getElementById('matchCountInfo');
+        
+        if (searchResults.length === 0 || currentMatchIndex === -1) return;
+
+        const targetRow = searchResults[currentMatchIndex].row;
+        const matchedReply = targetRow[replyColumnIndex] || "";
+
+        // 填入回覆大要
+        summaryTextarea.value = matchedReply.trim();
+        
+        // 更新計數顯示
+        countInfo.innerHTML = `🎯 找到相似前案：第 ${currentMatchIndex + 1} / ${searchResults.length} 筆`;
+
+        // 讓回覆大要輸入框閃爍提示同仁
+        summaryTextarea.style.backgroundColor = "#f0fff4";
+        setTimeout(() => { summaryTextarea.style.backgroundColor = "#fff"; }, 500);
+    }
+
     // 3. 綁定查詢按鈕事件
     document.getElementById('btnSearchSheet').addEventListener('click', async function() {
         const contentVal = document.getElementById('content').value.trim();
         const statusSpan = document.getElementById('sheetSearchStatus');
-        const summaryTextarea = document.getElementById('summary');
+        const navPanel = document.getElementById('matchNavPanel');
 
         if (!contentVal) {
             alert("請先輸入「陳情內容」再進行雲端比對查詢。");
             return;
         }
 
+        // 初始化狀態
+        searchResults = [];
+        currentMatchIndex = -1;
+        navPanel.style.display = "none";
+
         statusSpan.innerHTML = "⏳ 正在連線至 Google 試算表資料庫...";
         statusSpan.style.color = "#2b6cb0";
 
-        // 將使用者的 pubhtml 網址動態轉為後台專用的資料串流網址
         const origUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSLk6B_ohYu7eLDVdmrrfInHhiKrl5Sp3-8dSLJyQ2gXMDKvKDOBs0oy-vShnMGhzRGeUHl6TTd7Wkh/pubhtml";
         const fetchUrl = origUrl.replace('/pubhtml', '/pub?output=csv');
 
@@ -288,59 +329,46 @@ ${summary}
                 return;
             }
 
-            // 尋找「陳情內容」或類似的欄位索引，通常第 1 列是表單標頭
             const headers = rows[0];
             let contentIdx = -1;
-            let replyIdx = -1;
+            replyColumnIndex = -1;
 
-            // 智慧識別欄位：尋找包含「陳情」、「訴求」、「回覆」、「辦理」等關鍵字
             for (let i = 0; i < headers.length; i++) {
                 const headerText = headers[i].trim();
                 if (headerText.includes("陳情") || headerText.includes("訴求") || headerText.includes("問題")) contentIdx = i;
-                if (headerText.includes("回覆") || headerText.includes("答辯") || headerText.includes("擬辦") || headerText.includes("結論")) replyIdx = i;
+                if (headerText.includes("回覆") || headerText.includes("答辯") || headerText.includes("擬辦") || headerText.includes("結論")) replyColumnIndex = i;
             }
 
-            // 如果找不到特定欄位，預設第 2 欄為陳情、第 3 欄為回覆大要
             if (contentIdx === -1) contentIdx = 1;
-            if (replyIdx === -1) replyIdx = headers.length > 2 ? 2 : 1;
+            if (replyColumnIndex === -1) replyColumnIndex = headers.length > 2 ? 2 : 1;
 
-            let bestMatchRow = null;
-            let highestScore = 0;
-
-            // 逐列進行關鍵字智慧比對
+            // 搜集所有符合門檻的資料
             for (let r = 1; r < rows.length; r++) {
                 const cellContent = rows[r][contentIdx] || "";
                 if (!cellContent.trim()) continue;
 
-                // 計算交集關鍵字的匹配度
                 let matchScore = 0;
-                // 取陳情內容每 2 個字為一組關鍵字進行模糊比對
                 for (let k = 0; k < contentVal.length - 1; k++) {
                     const keyword = contentVal.substr(k, 2);
                     if (cellContent.includes(keyword)) matchScore++;
                 }
 
-                if (matchScore > highestScore) {
-                    highestScore = matchScore;
-                    bestMatchRow = rows[r];
+                if (matchScore > 3) {
+                    searchResults.push({ score: matchScore, row: rows[r] });
                 }
             }
 
-            // 設定匹配門檻（至少有重疊字群）
-            if (bestMatchRow && highestScore > 3) {
-                const matchedReply = bestMatchRow[replyIdx] || "";
-                if (matchedReply.trim()) {
-                    summaryTextarea.value = matchedReply.trim();
-                    statusSpan.innerHTML = `🎯 成功匹配前案！已自動擷取歷史回覆內容至下方「回覆大要」，等候 Gemini 優化。`;
-                    statusSpan.style.color = "#2f855a";
-                    
-                    // 讓回覆大要輸入框閃爍提示同仁
-                    summaryTextarea.style.backgroundColor = "#f0fff4";
-                    setTimeout(() => { summaryTextarea.style.backgroundColor = "#fff"; }, 1500);
-                } else {
-                    statusSpan.innerHTML = `⚠️ 找到相似陳情案，但該歷史紀錄之回覆內容為空。`;
-                    statusSpan.style.color = "#dd6b20";
-                }
+            // 依據匹配分數由高到低排序
+            searchResults.sort((a, b) => b.score - a.score);
+
+            if (searchResults.length > 0) {
+                currentMatchIndex = 0;
+                statusSpan.innerHTML = `已擷取最相似的前案。如非所需，請點擊下方按鈕切換其他案件。`;
+                statusSpan.style.color = "#2f855a";
+                
+                // 顯示切換面板
+                navPanel.style.display = "flex";
+                displayCurrentMatch();
             } else {
                 statusSpan.innerHTML = `🔍 比對完成：雲端資料庫中「未發現」相同或高度相似的前案紀錄。`;
                 statusSpan.style.color = "#4a5568";
@@ -352,5 +380,18 @@ ${summary}
             statusSpan.style.color = "#e53e3e";
         }
     });
-})();
+
+    // 4. 綁定「上一件」與「下一件」按鈕事件
+    document.getElementById('btnPrevMatch').addEventListener('click', function() {
+        if (searchResults.length <= 1) return;
+        currentMatchIndex = (currentMatchIndex - 1 + searchResults.length) % searchResults.length;
+        displayCurrentMatch();
+    });
+
+    document.getElementById('btnNextMatch').addEventListener('click', function() {
+        if (searchResults.length <= 1) return;
+        currentMatchIndex = (currentMatchIndex + 1) % searchResults.length;
+        displayCurrentMatch();
+    });
+});
 </script>
