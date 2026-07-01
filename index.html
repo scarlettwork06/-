@@ -90,6 +90,7 @@
 
     // 【修改處 1】加入 type 參數，優化 Prompt 讓 AI 能精準產出簽與稿
     // 【優化 Prompt】對接全國法規資料庫標準與行政院文書處理手冊
+   // 【優化 Prompt】對接全國法規資料庫、文書手冊，並將回覆大要提升為對 Gemini 的直接核心指令
     async function simulateGeminiAI(type, petitioner, dateStr, content, summary) {
         const API_KEY = localStorage.getItem('gemini_api_key');
         if (!API_KEY) throw new Error("請先點擊上方按鈕設定 API 金鑰。");
@@ -113,10 +114,20 @@
 - 陳情人：${petitioner || '民眾'}
 - 來文日期：${dateStr}
 - 陳情內容：${content}
-${summary ? `- 擬辦擬復重點（前案參考）：\n${summary}\n` : ''}
 
-【輸出格式要求】
 `;
+
+        // 核心改動：若「回覆大要」有文字，將其提升為與 AI 溝通的最高核心指令
+        if (summary) {
+            promptText += `【🚨 核心擬辦與對 AI 的直接變更指令（最高優先權）】
+承辦人已在「回覆大要」欄位輸入了具體指示或參考前案。
+請你將以下文字視為與你溝通的直接命令，並完全依照其要求來編排、潤飾、補充或調整公文內容與語氣：
+--------------------------------------
+${summary}
+--------------------------------------\n\n`;
+        }
+
+        promptText += `【輸出格式要求】\n`;
 
         if (type === '併陳') {
             promptText += `請生成「簽」與「函（稿）」兩部分，並用【簽】與【函稿】標籤分開。
