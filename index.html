@@ -258,11 +258,55 @@ ${summary}
         return lines;
     }
 
-    // 3. 綁定查詢按鈕事件
+   // 3. 擴充全域變數（在此 scope 內），用於紀錄多筆匹配結果與當前索引
+    let matchedResults = [];
+    let currentMatchIndex = -1;
+    const summaryTextarea = document.getElementById('summary');
+    const statusSpan = document.getElementById('sheetSearchStatus');
+
+    // 動態在狀態提示旁加入「上一筆/下一筆」的切換按鈕面板
+    let pagerPanel = document.getElementById('sheetPagerPanel');
+    if (!pagerPanel) {
+        pagerPanel = document.createElement('span');
+        pagerPanel.id = 'sheetPagerPanel';
+        pagerPanel.style.cssText = "margin-left: 15px; display: none; gap: 5px; align-items: center;";
+        pagerPanel.innerHTML = `
+            <button type="button" id="btnPrevMatch" style="padding: 2px 8px; font-size: 12px; background-color: #718096; color: white; border: none; border-radius: 3px; cursor: pointer;">◀ 上一筆</button>
+            <button type="button" id="btnNextMatch" style="padding: 2px 8px; font-size: 12px; background-color: #718096; color: white; border: none; border-radius: 3px; cursor: pointer;">下一筆 ▶</button>
+            <span id="lblPageInfo" style="font-size: 12px; color: #4a5568; font-weight: bold;"></span>
+        `;
+        document.getElementById('btnSearchSheet').parentNode.appendChild(pagerPanel);
+
+        // 綁定切換按鈕事件
+        document.getElementById('btnPrevMatch').addEventListener('click', () => switchMatch(currentMatchIndex - 1));
+        document.getElementById('btnNextMatch').addEventListener('click', () => switchMatch(currentMatchIndex + 1));
+    }
+
+    // 渲染指定索引的前案資料
+    function switchMatch(index) {
+        if (index < 0 || index >= matchedResults.length) return;
+        
+        currentMatchIndex = index;
+        const currentData = matchedResults[currentMatchIndex];
+        
+        // 帶入回覆大要
+        summaryTextarea.value = currentData.reply.trim();
+        
+        // 更新狀態與分頁標籤
+        statusSpan.innerHTML = `🎯 成功匹配前案！已自動擷取歷史回覆內容（與該案匹配度: ${currentData.score} 分）`;
+        statusSpan.style.color = "#2f855a";
+        
+        document.getElementById('lblPageInfo').innerText = `(${currentMatchIndex + 1} / ${matchedResults.length})`;
+        
+        // 讓回覆大要輸入框閃爍提示同仁
+        summaryTextarea.style.backgroundColor = "#f0fff4";
+        setTimeout(() => { summaryTextarea.style.backgroundColor = "#fff"; }, 800);
+    }
+
+    // 重新綁定主查詢按鈕事件
+    document.getElementById('btnSearchSheet').replaceWith(document.getElementById('btnSearchSheet').cloneNode(true)); 
     document.getElementById('btnSearchSheet').addEventListener('click', async function() {
         const contentVal = document.getElementById('content').value.trim();
-        const statusSpan = document.getElementById('sheetSearchStatus');
-        const summaryTextarea = document.getElementById('summary');
 
         if (!contentVal) {
             alert("請先輸入「陳情內容」再進行雲端比對查詢。");
@@ -271,8 +315,10 @@ ${summary}
 
         statusSpan.innerHTML = "⏳ 正在連線至 Google 試算表資料庫...";
         statusSpan.style.color = "#2b6cb0";
+        pagerPanel.style.display = "none";
+        matchedResults = [];
+        currentMatchIndex = -1;
 
-        // 將使用者的 pubhtml 網址動態轉為後台專用的資料串流網址
         const origUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSLk6B_ohYu7eLDVdmrrfInHhiKrl5Sp3-8dSLJyQ2gXMDKvKDOBs0oy-vShnMGhzRGeUHl6TTd7Wkh/pubhtml";
         const fetchUrl = origUrl.replace('/pubhtml', '/pub?output=csv');
 
@@ -288,59 +334,48 @@ ${summary}
                 return;
             }
 
-            // 尋找「陳情內容」或類似的欄位索引，通常第 1 列是表單標頭
             const headers = rows[0];
             let contentIdx = -1;
             let replyIdx = -1;
 
-            // 智慧識別欄位：尋找包含「陳情」、「訴求」、「回覆」、「辦理」等關鍵字
             for (let i = 0; i < headers.length; i++) {
                 const headerText = headers[i].trim();
                 if (headerText.includes("陳情") || headerText.includes("訴求") || headerText.includes("問題")) contentIdx = i;
                 if (headerText.includes("回覆") || headerText.includes("答辯") || headerText.includes("擬辦") || headerText.includes("結論")) replyIdx = i;
             }
 
-            // 如果找不到特定欄位，預設第 2 欄為陳情、第 3 欄為回覆大要
             if (contentIdx === -1) contentIdx = 1;
             if (replyIdx === -1) replyIdx = headers.length > 2 ? 2 : 1;
 
-            let bestMatchRow = null;
-            let highestScore = 0;
-
-            // 逐列進行關鍵字智慧比對
+            // 調整：搜集所有大於門檻（3分）的案件，並按分數由高到低排序
             for (let r = 1; r < rows.length; r++) {
                 const cellContent = rows[r][contentIdx] || "";
-                if (!cellContent.trim()) continue;
+                const matchedReply = rows[r][replyIdx] || "";
+                if (!cellContent.trim() || !matchedReply.trim()) continue;
 
-                // 計算交集關鍵字的匹配度
                 let matchScore = 0;
-                // 取陳情內容每 2 個字為一組關鍵字進行模糊比對
                 for (let k = 0; k < contentVal.length - 1; k++) {
                     const keyword = contentVal.substr(k, 2);
                     if (cellContent.includes(keyword)) matchScore++;
                 }
 
-                if (matchScore > highestScore) {
-                    highestScore = matchScore;
-                    bestMatchRow = rows[r];
+                // 符合門檻則丟入候選陣列
+                if (matchScore > 3) {
+                    matchedResults.push({
+                        score: matchScore,
+                        reply: matchedReply
+                    });
                 }
             }
 
-            // 設定匹配門檻（至少有重疊字群）
-            if (bestMatchRow && highestScore > 3) {
-                const matchedReply = bestMatchRow[replyIdx] || "";
-                if (matchedReply.trim()) {
-                    summaryTextarea.value = matchedReply.trim();
-                    statusSpan.innerHTML = `🎯 成功匹配前案！已自動擷取歷史回覆內容至下方「回覆大要」，等候 Gemini 優化。`;
-                    statusSpan.style.color = "#2f855a";
-                    
-                    // 讓回覆大要輸入框閃爍提示同仁
-                    summaryTextarea.style.backgroundColor = "#f0fff4";
-                    setTimeout(() => { summaryTextarea.style.backgroundColor = "#fff"; }, 1500);
-                } else {
-                    statusSpan.innerHTML = `⚠️ 找到相似陳情案，但該歷史紀錄之回覆內容為空。`;
-                    statusSpan.style.color = "#dd6b20";
-                }
+            // 依匹配分數從高到低排序
+            matchedResults.sort((a, b) => b.score - a.score);
+
+            if (matchedResults.length > 0) {
+                // 顯示切換面板
+                pagerPanel.style.display = "inline-flex";
+                // 預設渲染第一筆（分數最高）
+                switchMatch(0);
             } else {
                 statusSpan.innerHTML = `🔍 比對完成：雲端資料庫中「未發現」相同或高度相似的前案紀錄。`;
                 statusSpan.style.color = "#4a5568";
@@ -348,9 +383,8 @@ ${summary}
 
         } catch (error) {
             console.error("讀取 Google 表單失敗:", error);
-            statusSpan.innerHTML = `❌ 連線失敗，請確認該表單是否已設定「發佈於網路」。`;
             statusSpan.style.color = "#e53e3e";
+            statusSpan.innerHTML = `❌ 連線失敗，請確認該表單是否已設定「發佈於網路」。`;
         }
     });
-})();
 </script>
