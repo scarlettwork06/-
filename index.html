@@ -89,11 +89,29 @@
     }
 
     // 【修改處 1】加入 type 參數，優化 Prompt 讓 AI 能精準產出簽與稿
-    async function simulateGeminiAI(type, petitioner, dateStr, content, summary) {
-        const API_KEY = localStorage.getItem('gemini_api_key');
-        if (!API_KEY) throw new Error("請先點擊上方按鈕設定 API 金鑰。");
+   </div>
 
-        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+<script>
+    window.onload = function() { ... };
+    updateStatusDisplay() { ... };
+    updateApiKey() { ... };
+    formatChineseDate(dateString) { ... };
+
+    // 🔴 請把原本的這個函數，完整替換成上面提供的新程式碼
+    async function simulateGeminiAI(type, petitioner, dateStr, content, summary) {
+        // ... 舊的程式碼 ...
+    }
+
+    async function generateDoc(type) { ... };
+</script>
+
+<script>
+(function() {
+    // 🔍 查詢雲端表單前案的程式碼...
+})();
+</script>
+
+</body>
         
         let promptText = `你現在是台灣的公務員，請依據《行政院文書處理手冊》規範，針對以下陳情內容擬具公文。\n`;
         promptText += `陳情人：${petitioner || '民眾'}\n`;
